@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { PlayIcon, Save, Plus, Trash2 } from 'lucide-react';
+import { PlayIcon, Save, Plus, Trash2, CloudCog } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 
@@ -179,32 +179,16 @@ export default function ConfigPanel({
               />
             </div>
             
-            {/* Backend Selection */}
+            {/* Backend Information */}
             <div className="mb-4">
               <Label className="block text-sm font-medium text-gray-400 mb-2">Backend</Label>
-              <div className="bg-[#131A29] rounded p-2">
-                <RadioGroup 
-                  value={backend}
-                  onValueChange={(value) => setBackend(value as BackendType)}
-                  className="flex items-center"
-                >
-                  <div className="flex items-center mr-4">
-                    <RadioGroupItem 
-                      value="Express" 
-                      id="backend-express"
-                      className="text-[#0098FF] border-[#0098FF]"
-                    />
-                    <Label htmlFor="backend-express" className="ml-2 text-sm">Express</Label>
-                  </div>
-                  <div className="flex items-center">
-                    <RadioGroupItem 
-                      value="Cloudflare Worker" 
-                      id="backend-cloudflare"
-                      className="text-[#0098FF] border-[#0098FF]"
-                    />
-                    <Label htmlFor="backend-cloudflare" className="ml-2 text-sm">Cloudflare Worker</Label>
-                  </div>
-                </RadioGroup>
+              <div className="bg-[#131A29] rounded p-3 flex items-center">
+                <span className="w-5 h-5 mr-2 flex items-center justify-center text-[#FF6B00]">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 5C17 5 14.6 7.4 13.5 7.4C12.4 7.4 11.1 5 8 5C5.1 5 2 7.4 2 11.7C2 16.1 6 21 12 21C18 21 22 16.1 22 11.7C22 7.4 20 5 20 5Z" />
+                  </svg>
+                </span>
+                <span className="text-sm font-medium">Cloudflare Worker</span>
               </div>
             </div>
             

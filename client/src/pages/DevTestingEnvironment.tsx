@@ -13,7 +13,7 @@ export default function DevTestingEnvironment() {
   const [categories] = useState<TestCategory[]>(testCategories);
   const [selectedCategory, setSelectedCategory] = useState<TestCategory | null>(null);
   const [selectedTest, setSelectedTest] = useState<Test | null>(null);
-  const [backend, setBackend] = useState<BackendType>('Express');
+  const [backend, setBackend] = useState<BackendType>('Cloudflare Worker');
   const [environment, setEnvironment] = useState<Environment>('Development');
   const [testResult, setTestResult] = useState<TestResult | null>(null);
   

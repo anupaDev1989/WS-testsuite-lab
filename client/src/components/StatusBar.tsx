@@ -7,16 +7,15 @@ interface StatusBarProps {
 }
 
 export default function StatusBar({ backend, testResult }: StatusBarProps) {
+  // Simulate connection status for Cloudflare Worker
+  const isConnected = true; // In a real app, this would be a state that checks actual connection status
+
   return (
     <div className="bg-[#131A29] border-t border-[#1C2333] p-2 text-xs text-gray-400 flex items-center justify-between">
       <div className="flex items-center">
-        <span className="flex items-center mr-4">
-          <span className={`w-2 h-2 rounded-full ${backend === 'Express' ? 'bg-[#00C853]' : 'bg-gray-500'} mr-1`}></span>
-          Express Server: {backend === 'Express' ? 'Active' : 'Inactive'}
-        </span>
         <span className="flex items-center">
-          <span className={`w-2 h-2 rounded-full ${backend === 'Cloudflare Worker' ? 'bg-[#00C853]' : 'bg-gray-500'} mr-1`}></span>
-          Cloudflare Worker: {backend === 'Cloudflare Worker' ? 'Active' : 'Inactive'}
+          <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#00C853]' : 'bg-[#F44336]'} mr-1`}></span>
+          Cloudflare Worker: {isConnected ? 'Connected' : 'Disconnected'}
         </span>
       </div>
       <div>

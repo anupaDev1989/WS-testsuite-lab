@@ -1,4 +1,4 @@
-export type BackendType = 'Express' | 'Cloudflare Worker';
+export type BackendType = 'Cloudflare Worker';
 export type RequestMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 export type Environment = 'Development' | 'Testing' | 'Production';
 
