@@ -1,15 +1,18 @@
 import { BackendType } from '@/types';
 import { Button } from '@/components/ui/button';
-import { PlayIcon, Code, CloudCog } from 'lucide-react';
+import { PlayIcon, Code, CloudCog, LogOut } from 'lucide-react';
+import { signOut } from '@/lib/auth';
 
 interface HeaderProps {
   backend: BackendType;
   setBackend: (backend: BackendType) => void;
   onRunTest: () => void;
   isExecuting: boolean;
+  isLoggedIn: boolean;
+  onLogout: () => void;
 }
 
-export default function Header({ backend, onRunTest, isExecuting }: HeaderProps) {
+export default function Header({ backend, onRunTest, isExecuting, isLoggedIn, onLogout }: HeaderProps) {
   return (
     <header className="flex items-center justify-between px-4 py-2 bg-[#131A29] border-b border-[#1C2333]">
       <div className="flex items-center">
@@ -23,14 +26,30 @@ export default function Header({ backend, onRunTest, isExecuting }: HeaderProps)
           <span className="text-sm text-white">Cloudflare Worker</span>
         </div>
         
-        <Button 
-          onClick={onRunTest}
-          disabled={isExecuting}
-          className="flex items-center bg-[#0098FF] hover:bg-[#0080DC] text-white px-3 py-1 h-8"
-        >
-          <PlayIcon className="h-4 w-4 mr-1" />
-          Run Test
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            onClick={onRunTest}
+            disabled={isExecuting}
+            className="flex items-center bg-[#0098FF] hover:bg-[#0080DC] text-white px-3 py-1 h-8"
+          >
+            <PlayIcon className="h-4 w-4 mr-1" />
+            Run Test
+          </Button>
+          
+          {isLoggedIn && (
+            <Button
+              onClick={async () => {
+                await signOut();
+                onLogout();
+              }}
+              variant="ghost"
+              className="text-white hover:bg-[#2D3343]"
+            >
+              <LogOut className="h-4 w-4 mr-1" />
+              Logout
+            </Button>
+          )}
+        </div>
       </div>
     </header>
   );

@@ -54,6 +54,8 @@ export default function DevTestingEnvironment() {
             setBackend={setBackend} 
             onRunTest={handleRunTest}
             isExecuting={isExecuting}
+            isLoggedIn={isLoggedIn}
+            onLogout={() => setIsLoggedIn(false)}
           />
       
       <ResizablePanelGroup direction="horizontal" className="flex-1">
