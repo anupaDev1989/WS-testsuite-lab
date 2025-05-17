@@ -6,3 +6,7 @@ compatibility_flags = [ "nodejs_compat" ]
 
 [observability]
 enabled = true
+
+[[kv_namespaces]]
+binding = "TESTSUITE_KV"
+id = "06cb20bef9b747be92ec2c88335a7479"

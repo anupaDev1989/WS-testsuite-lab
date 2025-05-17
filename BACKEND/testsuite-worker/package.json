@@ -4,6 +4,7 @@
 	"private": true,
 	"scripts": {
 		"deploy": "wrangler deploy",
+		"deploy-worker": "wrangler deploy",
 		"dev": "wrangler dev",
 		"start": "wrangler dev"
 	},
@@ -11,6 +12,13 @@
 		"wrangler": "^4.15.2"
 	},
 	"dependencies": {
-		"hono": "^4.7.10"
-	}
+		"@supabase/supabase-js": "^2.49.4",
+		"hono": "^4.7.10",
+		"zod": "^3.24.4"
+	},
+	"main": "index.js",
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"description": ""
 }
