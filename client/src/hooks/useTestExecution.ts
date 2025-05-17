@@ -35,6 +35,12 @@ export default function useTestExecution() {
 
     // Add test initialization info
     addTerminalLine({
+      type: 'warning',
+      content: `**** MOCK RESULTS - FOR TESTING PURPOSES ONLY! ****`,
+      timestamp: new Date()
+    });
+
+    addTerminalLine({
       type: 'info',
       content: `Initiating ${test.method} request to ${test.url} via worker endpoint`,
       timestamp: new Date()
