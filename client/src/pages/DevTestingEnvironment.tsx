@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import Header from '@/components/Header';
+import LoginForm from '@/components/LoginForm';
 import LeftPanel from '@/components/LeftPanel';
 import TerminalPanel from '@/components/TerminalPanel';
 import ConfigPanel from '@/components/ConfigPanel';
