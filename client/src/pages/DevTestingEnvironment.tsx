@@ -16,6 +16,7 @@ export default function DevTestingEnvironment() {
   const [backend, setBackend] = useState<BackendType>('Cloudflare Worker');
   const [environment, setEnvironment] = useState<Environment>('Development');
   const [testResult, setTestResult] = useState<TestResult | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   
   // Initialize with the first category and test
   useEffect(() => {
@@ -41,12 +42,18 @@ export default function DevTestingEnvironment() {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#0E1525]">
-      <Header 
-        backend={backend} 
-        setBackend={setBackend} 
-        onRunTest={handleRunTest}
-        isExecuting={isExecuting}
-      />
+      {!isLoggedIn ? (
+        <div className="flex items-center justify-center h-full">
+          <LoginForm onLoginSuccess={() => setIsLoggedIn(true)} />
+        </div>
+      ) : (
+        <>
+          <Header 
+            backend={backend} 
+            setBackend={setBackend} 
+            onRunTest={handleRunTest}
+            isExecuting={isExecuting}
+          />
       
       <ResizablePanelGroup direction="horizontal" className="flex-1">
         <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
@@ -84,6 +91,8 @@ export default function DevTestingEnvironment() {
         backend={backend}
         testResult={testResult}
       />
+        </>
+      )}
     </div>
   );
 }

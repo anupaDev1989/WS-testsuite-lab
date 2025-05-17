@@ -2,7 +2,11 @@
 import React, { useState } from 'react';
 import { signIn } from '../lib/auth';
 
-const LoginForm = () => {
+interface LoginFormProps {
+  onLoginSuccess: () => void;
+}
+
+const LoginForm = ({ onLoginSuccess }: LoginFormProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -11,6 +15,7 @@ const LoginForm = () => {
     try {
       const user = await signIn(email, password);
       console.log('Logged in user:', user);
+      onLoginSuccess();
     } catch (error) {
       console.error(error);
     }
