@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import { BackendType, TestResult } from '@/types';
 import { format } from 'date-fns';
 
@@ -22,7 +23,7 @@ export default function StatusBar({ backend, testResult }: StatusBarProps) {
         setWorkerInfo(null);
       }
     };
-    
+
     checkWorkerStatus();
     const interval = setInterval(checkWorkerStatus, 30000); // Check every 30 seconds
     return () => clearInterval(interval);
@@ -52,3 +53,4 @@ export default function StatusBar({ backend, testResult }: StatusBarProps) {
     </div>
   );
 }
+`
