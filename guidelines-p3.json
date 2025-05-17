@@ -1,0 +1,218 @@
+[
+  {
+    "source_file": "guideline-part-3",
+    "id": "iii-cross-cutting-concerns",
+    "heading": "III. Cross-Cutting Concerns",
+    "level": 1,
+    "path": "III. Cross-Cutting Concerns",
+    "content": null
+  },
+   {
+    "source_file": "guideline-part-3",
+    "id": "security-cross-cutting",
+    "heading": "A. Security Enhancements",
+    "level": 2,
+    "path": "III. Cross-Cutting Concerns -> A. Security Enhancements",
+    "content": null
+  },
+  {
+    "source_file": "guideline-part-3",
+    "id": "security-csp",
+    "heading": "Content Security Policy",
+    "level": 4,
+    "path": "III. Cross-Cutting Concerns -> A. Security Enhancements -> Content Security Policy",
+    "content": "- Implement strict CSP headers:\n  ```javascript\n  // In your Worker\n  const cspHeaders = {\n    'Content-Security-Policy': [\n      \"default-src 'self'\",\n      \"script-src 'self'\",\n      \"connect-src 'self' [https://api.stripe.com](https://api.stripe.com) https://*.supabase.co\",\n      \"img-src 'self' data: [https://cdn.yourdomain.com](https://cdn.yourdomain.com)\",\n      \"style-src 'self' 'unsafe-inline'\",\n      \"frame-src [https://js.stripe.com](https://js.stripe.com)\",\n      \"object-src 'none'\",\n      \"base-uri 'self'\",\n      \"form-action 'self'\",\n      \"frame-ancestors 'none'\",\n      \"upgrade-insecure-requests\"\n    ].join('; ')\n  };\n\n  // Add to response headers\n  ```"
+  },
+  {
+    "source_file": "guideline-part-3",
+    "id": "security-csrf",
+    "heading": "CSRF Protection",
+    "level": 4,
+    "path": "III. Cross-Cutting Concerns -> A. Security Enhancements -> CSRF Protection",
+    "content": "- Implement double-submit cookie pattern for non-GET endpoints:\n  ```javascript\n  // Generate CSRF token on auth\n  function generateCSRFToken() {\n    return crypto.randomUUID();\n  }\n\n  // Set as HttpOnly cookie and return in response body\n  app.post('/api/login', async (c) => {\n    // Auth logic...\n\n    const csrfToken = generateCSRFToken();\n\n    // Set in cookie\n    c.header('Set-Cookie', `__Host-csrf=${csrfToken}; Path=/; Secure; HttpOnly; SameSite=Strict`);\n\n    // Include in response body\n    return c.json({\n      user: userData,\n      csrfToken: csrfToken\n    });\n  });\n\n  // Verify on state-changing endpoints\n  async function csrfProtection(c, next) {\n    if (c.req.method !== 'GET' && c.req.method !== 'HEAD' && c.req.method !== 'OPTIONS') {\n      const csrfCookie = c.req.cookie('__Host-csrf');\n      const csrfHeader = c.req.header('X-CSRF-Token');\n\n      if (!csrfCookie || !csrfHeader || csrfCookie !== csrfHeader) {\n        return c.json({ error: 'CSRF validation failed' }, 403);\n      }\n    }\n    return next();\n  }\n  ```"
+  },
+  {
+    "source_file": "guideline-part-3",
+    "id": "security-llm-prompt",
+    "heading": "LLM Prompt Security",
+    "level": 4,
+    "path": "III. Cross-Cutting Concerns -> A. Security Enhancements -> LLM Prompt Security",
+    "content": "- Implement prompt injection protection:\n  ```javascript\n  function sanitizePrompt(userInput) {\n    // Remove potential control characters\n    const sanitized = userInput\n      .replace(/[\\u0000-\\u001F\\u007F-\\u009F]/g, '')\n      .replace(/\\\\n/g, ' ')\n      .replace(/\\\\/g, '\\\\\\\\');\n\n    // Add clear context boundaries\n    return `<user_input>${sanitized}</user_input>`;\n  }\n\n  // Validate LLM responses\n  function validateLLMResponse(response) {\n    // Ensure no unexpected HTML/script injection\n    if (/<script|javascript:|data:/i.test(response)) {\n      return false;\n    }\n\n    // Validate structured responses\n    // ...additional validation logic\n\n    return true;\n  }\n  ```"
+  },
+  {
+    "source_file": "guideline-part-3",
+    "id": "efficiency-cross-cutting",
+    "heading": "B. Efficiency Optimizations",
+    "level": 2,
+    "path": "III. Cross-Cutting Concerns -> B. Efficiency Optimizations",
+    "content": null
+  },
+  {
+    "source_file": "guideline-part-3",
+    "id": "efficiency-frontend",
+    "heading": "Frontend Performance",
+    "level": 4,
+    "path": "III. Cross-Cutting Concerns -> B. Efficiency Optimizations -> Frontend Performance",
+    "content": "- Implement advanced caching strategies\n- Use code splitting for route-based chunks\n- Optimize images and assets\n- Implement lazy loading for off-screen content"
+  },
+  {
+    "source_file": "guideline-part-3",
+    "id": "efficiency-api-communication",
+    "heading": "API Communication",
+    "level": 4,
+    "path": "III. Cross-Cutting Concerns -> B. Efficiency Optimizations -> API Communication",
+    "content": "- Implement connection pooling where supported\n- Use batching for related requests\n- Implement retry with exponential backoff"
+  },
+  {
+    "source_file": "guideline-part-3",
+    "id": "efficiency-database",
+    "heading": "Database Optimization",
+    "level": 4,
+    "path": "III. Cross-Cutting Concerns -> B. Efficiency Optimizations -> Database Optimization",
+    "content": "- Use proper indexes for common queries\n- Implement connection pooling\n- Use prepared statements\n- Optimize query patterns"
+  },
+   {
+    "source_file": "guideline-part-3",
+    "id": "cost-cross-cutting",
+    "heading": "C. Cost Optimization",
+    "level": 2,
+    "path": "III. Cross-Cutting Concerns -> C. Cost Optimization",
+    "content": null
+  },
+  {
+    "source_file": "guideline-part-3",
+    "id": "cost-worker-usage",
+    "heading": "Worker Usage",
+    "level": 4,
+    "path": "III. Cross-Cutting Concerns -> C. Cost Optimization -> Worker Usage",
+    "content": "- Stay within CPU time limits\n- Implement proper caching at all levels\n- Use efficient algorithms and data structures"
+  },
+  {
+    "source_file": "guideline-part-3",
+    "id": "cost-llm-api-usage",
+    "heading": "LLM API Usage",
+    "level": 4,
+    "path": "III. Cross-Cutting Concerns -> C. Cost Optimization -> LLM API Usage",
+    "content": "- Implement token counting and budgeting\n- Cache common responses\n- Use smaller models for simpler tasks"
+  },
+  {
+    "source_file": "guideline-part-3",
+    "id": "cost-database-usage",
+    "heading": "Database Usage",
+    "level": 4,
+    "path": "III. Cross-Cutting Concerns -> C. Cost Optimization -> Database Usage",
+    "content": "- Optimize query patterns\n- Implement proper indexes\n- Use edge databases when possible"
+  },
+   {
+    "source_file": "guideline-part-3",
+    "id": "monitoring-cross-cutting",
+    "heading": "D. Monitoring & Observability",
+    "level": 2,
+    "path": "III. Cross-Cutting Concerns -> D. Monitoring & Observability",
+    "content": null
+  },
+  {
+    "source_file": "guideline-part-3",
+    "id": "monitoring-error-tracking",
+    "heading": "Error Tracking",
+    "level": 4,
+    "path": "III. Cross-Cutting Concerns -> D. Monitoring & Observability -> Error Tracking",
+    "content": "- Implement structured error logging\n- Use Cloudflare Workers Logpush for centralized logging\n- Consider external error tracking service for production"
+  },
+  {
+    "source_file": "guideline-part-3",
+    "id": "monitoring-performance",
+    "heading": "Performance Monitoring",
+    "level": 4,
+    "path": "III. Cross-Cutting Concerns -> D. Monitoring & Observability -> Performance Monitoring",
+    "content": "- Track key metrics (response time, error rate)\n- Implement RUM (Real User Monitoring)\n- Set up alerts for anomalies"
+  },
+  {
+    "source_file": "guideline-part-3",
+    "id": "monitoring-usage-analytics",
+    "heading": "Usage Analytics",
+    "level": 4,
+    "path": "III. Cross-Cutting Concerns -> D. Monitoring & Observability -> Usage Analytics",
+    "content": "- Track API usage patterns\n- Monitor rate limit hits\n- Track LLM token usage"
+  },
+  {
+    "source_file": "guideline-part-3",
+    "id": "compliance-cross-cutting",
+    "heading": "E. Compliance & Privacy",
+    "level": 2,
+    "path": "III. Cross-Cutting Concerns -> E. Compliance & Privacy",
+    "content": null
+  },
+  {
+    "source_file": "guideline-part-3",
+    "id": "compliance-gdpr-ccpa",
+    "heading": "GDPR/CCPA Compliance",
+    "level": 4,
+    "path": "III. Cross-Cutting Concerns -> E. Compliance & Privacy -> GDPR/CCPA Compliance",
+    "content": "- Implement data export functionality\n- Support account deletion workflows\n- Store only necessary data\n- Implement proper consent mechanisms"
+  },
+  {
+    "source_file": "guideline-part-3",
+    "id": "compliance-cookie",
+    "heading": "Cookie Compliance",
+    "level": 4,
+    "path": "III. Cross-Cutting Concerns -> E. Compliance & Privacy -> Cookie Compliance",
+    "content": "- Implement cookie consent banner\n- Minimize use of tracking cookies\n- Use necessary cookies with proper attributes"
+  },
+  {
+    "source_file": "guideline-part-3",
+    "id": "iv-development-workflow",
+    "heading": "IV. Development Workflow",
+    "level": 1,
+    "path": "IV. Development Workflow",
+    "content": null
+  },
+  {
+    "source_file": "guideline-part-3",
+    "id": "workflow-enhanced-process",
+    "heading": "Enhanced Development Process",
+    "level": 3,
+    "path": "IV. Development Workflow -> Enhanced Development Process",
+    "content": "1. Set up local development environment with wrangler\n2. Implement CI/CD pipeline with automated testing\n3. Set up staging environment for pre-production testing\n4. Implement feature flags for gradual rollouts\n5. Set up monitoring and alerting\n6. Implement proper versioning strategy\n7. Document API endpoints and data models"
+  },
+  {
+    "source_file": "guideline-part-3",
+    "id": "workflow-testing-strategy",
+    "heading": "Testing Strategy",
+    "level": 3,
+    "path": "IV. Development Workflow -> Testing Strategy",
+    "content": "- Unit tests for critical functions\n- Integration tests for API endpoints\n- E2E tests for critical user flows\n- Load testing for performance validation"
+  },
+  {
+    "source_file": "guideline-part-3",
+    "id": "workflow-deployment-strategy",
+    "heading": "Deployment Strategy",
+    "level": 3,
+    "path": "IV. Development Workflow -> Deployment Strategy",
+    "content": "- Use Cloudflare Pages for frontend (automatic preview deployments)\n- Use Wrangler for Worker deployment\n- Implement automated database migrations\n- Use feature flags for controlled rollouts"
+  },
+  {
+    "source_file": "guideline-part-3",
+    "id": "v-scaling-considerations",
+    "heading": "V. Scaling Considerations",
+    "level": 1,
+    "path": "V. Scaling Considerations",
+    "content": null
+  },
+  {
+    "source_file": "guideline-part-3",
+    "id": "scaling-handling-growth",
+    "heading": "Handling Growth",
+    "level": 3,
+    "path": "V. Scaling Considerations -> Handling Growth",
+    "content": "- Document free tier limitations and upgrade paths\n- Plan for database sharding if needed\n- Implement proper caching strategies at all levels\n- Consider multi-region deployment for global scale"
+  },
+  {
+    "source_file": "guideline-part-3",
+    "id": "scaling-resilience-planning",
+    "heading": "Resilience Planning",
+    "level": 3,
+    "path": "V. Scaling Considerations -> Resilience Planning",
+    "content": "- Implement circuit breakers for external dependencies\n- Create fallback modes for service disruptions\n- Implement proper retry strategies\n- Set up proper monitoring and alerting"
+  }
+]

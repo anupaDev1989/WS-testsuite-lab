@@ -1,0 +1,282 @@
+[
+  {
+    "source_file": "guideline-part-2",
+    "id": "ii-component-breakdown",
+    "heading": "II. Component Breakdown & Guidelines",
+    "level": 1,
+    "path": "II. Component Breakdown & Guidelines",
+    "content": null
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "frontend-breakdown",
+    "heading": "A. Frontend (Vite + Cloudflare Pages)",
+    "level": 2,
+    "path": "II. Component Breakdown & Guidelines -> A. Frontend (Vite + Cloudflare Pages)",
+    "content": null
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "frontend-setup",
+    "heading": "Setup",
+    "level": 4,
+    "path": "II. Component Breakdown & Guidelines -> A. Frontend (Vite + Cloudflare Pages) -> Setup",
+    "content": "- Initialize with TypeScript and appropriate framework:\n  ```bash\n  npm create vite@latest my-app --template react-ts\n  ```\n- Implement responsive UI with utility-first CSS framework:\n  ```bash\n  npm install tailwindcss postcss autoprefixer\n  npx tailwindcss init -p\n  ```\n- Add Service Worker for offline capabilities and caching:\n  ```bash\n  npm install vite-plugin-pwa\n  ```"
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "frontend-core-features",
+    "heading": "Core Features",
+    "level": 4,
+    "path": "II. Component Breakdown & Guidelines -> A. Frontend (Vite + Cloudflare Pages) -> Core Features",
+    "content": "- **LLM Interaction Form**:\n  - Implement form validation using framework-specific tools\n  - Show character/token counters where appropriate\n  - Add clear error states and user feedback\n  - Implement proper disabled states during submissions\n\n- **Response Display**:\n  - Support streaming responses with incremental rendering\n  - Add content skeleton loaders for better UX\n  - Implement proper error recovery and retry mechanisms\n  - Cache responses locally when appropriate\n\n- **Authentication UI**:\n  - Implement Supabase auth with persistent sessions\n  - Add PKCE flow for enhanced security\n  - Example authentication setup:\n    ```javascript\n    import { createClient } from '@supabase/supabase-js'\n\n    const supabase = createClient(\n      import.meta.env.VITE_SUPABASE_URL,\n      import.meta.env.VITE_SUPABASE_ANON_KEY,\n      {\n        auth: {\n          persistSession: true,\n          autoRefreshToken: true,\n        }\n      }\n    )\n    ```\n\n- **State Management**:\n  - For React: Use Context API with reducers for global state\n  - For Vue: Use Pinia with modular stores\n  - For Svelte: Use stores with derived values\n  - Implement optimistic UI updates for better UX\n\n- **Payment Integration**:\n  - Use Stripe Checkout for simplicity and compliance\n  - Implement subscription status indicators\n  - Handle payment errors gracefully"
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "frontend-strategies-methods",
+    "heading": "Strategies & Methods",
+    "level": 4,
+    "path": "II. Component Breakdown & Guidelines -> A. Frontend (Vite + Cloudflare Pages) -> Strategies & Methods",
+    "content": null
+  },
+   {
+    "source_file": "guideline-part-2",
+    "id": "frontend-api-communication",
+    "heading": "API Communication",
+    "level": 5,
+    "path": "II. Component Breakdown & Guidelines -> A. Frontend (Vite + Cloudflare Pages) -> Strategies & Methods -> API Communication",
+    "content": "- Use fetch with interceptors for common headers and error handling\n- Implement retry logic with exponential backoff:\n  ```javascript\n  async function fetchWithRetry(url, options, maxRetries = 3) {\n    let retries = 0;\n    while (retries < maxRetries) {\n      try {\n        const response = await fetch(url, options);\n        if (response.ok) return response;\n        if (response.status === 429) {\n          // Rate limit hit, get retry-after header or use default\n          const retryAfter = response.headers.get('retry-after') || \n                            Math.pow(2, retries) * 1000;\n          await new Promise(r => setTimeout(r, retryAfter));\n          retries++;\n          continue;\n        }\n        // Handle other error statuses appropriately\n        throw new Error(`HTTP Error: ${response.status}`);\n      } catch (error) {\n        if (retries >= maxRetries - 1) throw error;\n        await new Promise(r => setTimeout(r, Math.pow(2, retries) * 1000));\n        retries++;\n      }\n    }\n  }\n  ```"
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "frontend-service-worker-strategy",
+    "heading": "Service Worker Strategy",
+    "level": 5,
+    "path": "II. Component Breakdown & Guidelines -> A. Frontend (Vite + Cloudflare Pages) -> Strategies & Methods -> Service Worker Strategy",
+    "content": "- Cache static assets with appropriate strategies\n- Implement offline fallbacks for critical routes\n- Use stale-while-revalidate pattern for API responses"
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "frontend-security-enhancements",
+    "heading": "Security Enhancements",
+    "level": 5,
+    "path": "II. Component Breakdown & Guidelines -> A. Frontend (Vite + Cloudflare Pages) -> Strategies & Methods -> Security Enhancements",
+    "content": "- Implement Content Security Policy\n- Sanitize user inputs before display\n- Use HttpOnly cookies where appropriate\n- Add CSRF protection for sensitive actions"
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "frontend-performance-optimization",
+    "heading": "Performance Optimization",
+    "level": 5,
+    "path": "II. Component Breakdown & Guidelines -> A. Frontend (Vite + Cloudflare Pages) -> Strategies & Methods -> Performance Optimization",
+    "content": "- Implement code splitting for route-based chunks\n- Use image optimization and lazy loading\n- Defer non-critical JavaScript\n- Implement proper caching strategies"
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "backend-breakdown",
+    "heading": "B. Backend (Cloudflare Worker)",
+    "level": 2,
+    "path": "II. Component Breakdown & Guidelines -> B. Backend (Cloudflare Worker)",
+    "content": null
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "backend-setup",
+    "heading": "Setup",
+    "level": 4,
+    "path": "II. Component Breakdown & Guidelines -> B. Backend (Cloudflare Worker) -> Setup",
+    "content": "- Use the latest Worker templates with TypeScript:\n  ```bash\n  npm init cloudflare my-worker worker-typescript\n  ```\n- Add structured router like Hono:\n  ```bash\n  npm install hono\n  ```\n- Set up middleware pipeline for common functions:\n  ```javascript\n  import { Hono } from 'hono';\n  import { cors } from 'hono/cors';\n  import { secureHeaders } from 'hono/secure-headers';\n\n  const app = new Hono();\n\n  app.use('*', cors({\n    origin: ['[https://yourdomain.com](https://yourdomain.com)'],\n    allowHeaders: ['Authorization', 'Content-Type'],\n    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],\n    exposeHeaders: ['X-Rate-Limit-Remaining'],\n    maxAge: 86400,\n  }));\n\n  app.use('*', secureHeaders());\n\n  export default app;\n  ```"
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "backend-core-features",
+    "heading": "Core Features",
+    "level": 4,
+    "path": "II. Component Breakdown & Guidelines -> B. Backend (Cloudflare Worker) -> Core Features",
+    "content": null
+  },
+   {
+    "source_file": "guideline-part-2",
+    "id": "backend-api-validation",
+    "heading": "API Endpoints with Input Validation",
+    "level": 5,
+    "path": "II. Component Breakdown & Guidelines -> B. Backend (Cloudflare Worker) -> Core Features -> API Endpoints with Input Validation",
+    "content": "- Use Zod or similar for schema validation:\n  ```javascript\n  import { z } from 'zod';\n\n  const requestSchema = z.object({\n    query: z.string().min(1).max(1000),\n    options: z.object({\n      temperature: z.number().min(0).max(1).optional(),\n      stream: z.boolean().optional(),\n    }).optional(),\n  });\n\n  app.post('/api/llm', async (c) => {\n    const body = await c.req.json();\n\n    // Validate input\n    const result = requestSchema.safeParse(body);\n    if (!result.success) {\n      return c.json({ error: 'Invalid request', details: result.error }, 400);\n    }\n\n    // Proceed with validated data\n    const { query, options } = result.data;\n    // ...rest of handler\n  });\n  ```"
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "backend-authentication-middleware",
+    "heading": "Authentication Middleware",
+    "level": 5,
+    "path": "II. Component Breakdown & Guidelines -> B. Backend (Cloudflare Worker) -> Core Features -> Authentication Middleware",
+    "content": "- Implement JWT verification with proper error handling:\n  ```javascript\n  async function authMiddleware(c, next) {\n    const authHeader = c.req.header('Authorization');\n    if (!authHeader || !authHeader.startsWith('Bearer ')) {\n      return c.json({ error: 'Missing or invalid authorization' }, 401);\n    }\n\n    const token = authHeader.split(' ')[1];\n    try {\n      // Verify using Supabase JWT verification\n      const { data, error } = await supabaseAdmin.auth.getUser(token);\n      if (error) throw error;\n\n      // Add user data to context\n      c.set('user', data.user);\n      return next();\n    } catch (error) {\n      return c.json({ error: 'Invalid token' }, 401);\n    }\n  }\n\n  // Apply to protected routes\n  app.use('/api/profile/*', authMiddleware);\n  ```"
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "backend-rate-limiting",
+    "heading": "Hierarchical Rate Limiting",
+    "level": 5,
+    "path": "II. Component Breakdown & Guidelines -> B. Backend (Cloudflare Worker) -> Core Features -> Hierarchical Rate Limiting",
+    "content": "- Implement tiered limits (global, IP, user, endpoint):\n  ```javascript\n  async function rateLimitMiddleware(c, next) {\n    const ip = c.req.headers.get('CF-Connecting-IP');\n    const userId = c.get('user')?.id || 'anonymous';\n    const endpoint = new URL(c.req.url).pathname;\n\n    // Check global rate limit\n    const globalKey = `ratelimit:global:${endpoint}:${Math.floor(Date.now() / 60000)}`;\n    const globalCount = await c.env.KV.get(globalKey) || 0;\n    if (globalCount > MAX_GLOBAL_REQUESTS_PER_MINUTE) {\n      return c.json({ error: 'Service experiencing high load' }, 429);\n    }\n\n    // Check user-specific rate limit\n    const userKey = `ratelimit:user:${userId}:${endpoint}:${Math.floor(Date.now() / 60000)}`;\n    const userCount = await c.env.KV.get(userKey) || 0;\n\n    const limit = userId === 'anonymous' ? \n      MAX_ANONYMOUS_REQUESTS_PER_MINUTE : \n      MAX_AUTHENTICATED_REQUESTS_PER_MINUTE;\n\n    if (userCount > limit) {\n      return c.json({ \n        error: 'Rate limit exceeded',\n        retryAfter: 60 - (Date.now() % 60000) / 1000\n      }, 429);\n    }\n\n    // Update counters\n    await Promise.all([\n      c.env.KV.put(globalKey, String(Number(globalCount) + 1), { expirationTtl: 70 }),\n      c.env.KV.put(userKey, String(Number(userCount) + 1), { expirationTtl: 70 })\n    ]);\n\n    // Set headers for client\n    c.header('X-Rate-Limit-Limit', String(limit));\n    c.header('X-Rate-Limit-Remaining', String(limit - userCount - 1));\n    c.header('X-Rate-Limit-Reset', String(60 - (Date.now() % 60000) / 1000));\n\n    return next();\n  }\n  ```"
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "backend-llm-caching",
+    "heading": "LLM Response Caching",
+    "level": 5,
+    "path": "II. Component Breakdown & Guidelines -> B. Backend (Cloudflare Worker) -> Core Features -> LLM Response Caching",
+    "content": "- Implement smart caching for common queries:\n  ```javascript\n  async function getLLMResponse(query, options, env) {\n    // Generate cache key from query and relevant options\n    const cacheKey = `llm:${sha256(query + JSON.stringify(options))}`;\n\n    // Check cache first\n    const cachedResponse = await env.KV.get(cacheKey);\n    if (cachedResponse) {\n      return JSON.parse(cachedResponse);\n    }\n\n    // No cache hit, call LLM API\n    const response = await callLLMAPI(query, options);\n\n    // Cache successful responses (with TTL based on volatility of content)\n    if (response) {\n      await env.KV.put(\n        cacheKey, \n        JSON.stringify(response), \n        { expirationTtl: 3600 * 24 } // 24 hours, adjust as needed\n      );\n    }\n\n    return response;\n  }\n  ```"
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "backend-response-streaming",
+    "heading": "Response Streaming",
+    "level": 5,
+    "path": "II. Component Breakdown & Guidelines -> B. Backend (Cloudflare Worker) -> Core Features -> Response Streaming",
+    "content": "- Implement streaming for better UX with long responses:\n  ```javascript\n  app.post('/api/llm/stream', async (c) => {\n    // Validate input here...\n\n    // Create and return a streaming response\n    const stream = new TransformStream();\n    const writer = stream.writable.getWriter();\n\n    // Start LLM request in background\n    streamLLMResponse(query, options, writer)\n      .catch(error => {\n        console.error('Streaming error:', error);\n        writer.write(encodeText(JSON.stringify({ error: 'Streaming failed' })));\n        writer.close();\n      });\n\n    return new Response(stream.readable, {\n      headers: {\n        'Content-Type': 'text/event-stream',\n        'Cache-Control': 'no-cache',\n        'Connection': 'keep-alive'\n      }\n    });\n  });\n  ```"
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "backend-stripe-webhook",
+    "heading": "Stripe Webhook Handler",
+    "level": 5,
+    "path": "II. Component Breakdown & Guidelines -> B. Backend (Cloudflare Worker) -> Core Features -> Stripe Webhook Handler",
+    "content": "- Implement secure webhook handling:\n  ```javascript\n  app.post('/api/stripe-webhook', async (c) => {\n    const signature = c.req.header('Stripe-Signature');\n    if (!signature) {\n      return c.json({ error: 'Missing signature' }, 400);\n    }\n\n    const body = await c.req.text();\n\n    try {\n      // Verify webhook signature\n      const event = stripe.webhooks.constructEvent(\n        body,\n        signature,\n        c.env.STRIPE_WEBHOOK_SECRET\n      );\n\n      // Handle different event types\n      switch (event.type) {\n        case 'checkout.session.completed':\n          await handleCheckoutCompleted(event.data.object, c.env);\n          break;\n        case 'customer.subscription.updated':\n          await handleSubscriptionUpdated(event.data.object, c.env);\n          break;\n        // Add other relevant events\n      }\n\n      return c.json({ received: true });\n    } catch (err) {\n      console.error('Webhook error:', err.message);\n      return c.json({ error: 'Webhook signature verification failed' }, 400);\n    }\n  });\n  ```"
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "backend-strategies-methods",
+    "heading": "Strategies & Methods",
+    "level": 4,
+    "path": "II. Component Breakdown & Guidelines -> B. Backend (Cloudflare Worker) -> Strategies & Methods",
+    "content": null
+  },
+   {
+    "source_file": "guideline-part-2",
+    "id": "backend-error-handling",
+    "heading": "Error Handling",
+    "level": 5,
+    "path": "II. Component Breakdown & Guidelines -> B. Backend (Cloudflare Worker) -> Strategies & Methods -> Error Handling",
+    "content": "- Implement centralized error handling with proper logging\n- Use structured error responses\n- Implement circuit breakers for external dependencies"
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "backend-performance-optimization",
+    "heading": "Performance Optimization",
+    "level": 5,
+    "path": "II. Component Breakdown & Guidelines -> B. Backend (Cloudflare Worker) -> Strategies & Methods -> Performance Optimization",
+    "content": "- Minimize CPU time to stay within free tier limits\n- Use streaming where appropriate\n- Implement proper caching at multiple levels"
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "backend-security-hardening",
+    "heading": "Security Hardening",
+    "level": 5,
+    "path": "II. Component Breakdown & Guidelines -> B. Backend (Cloudflare Worker) -> Strategies & Methods -> Security Hardening",
+    "content": "- Input sanitization and validation\n- Output encoding\n- Proper CSP headers\n- CSRF protection with double-submit pattern"
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "authentication-breakdown",
+    "heading": "C. Authentication (Supabase)",
+    "level": 2,
+    "path": "II. Component Breakdown & Guidelines -> C. Authentication (Supabase)",
+    "content": null
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "auth-enhanced-setup",
+    "heading": "Enhanced Setup",
+    "level": 4,
+    "path": "II. Component Breakdown & Guidelines -> C. Authentication (Supabase) -> Enhanced Setup",
+    "content": "- Configure multiple auth providers as needed\n- Set up email templates for verification/reset\n- Implement proper session management (refresh tokens)\n- Configure RLS policies for database tables:\n  ```sql\n  -- Example RLS policy for profiles table\n  CREATE POLICY \"Users can read own profile\" \n  ON profiles FOR SELECT \n  USING (auth.uid() = user_id);\n\n  CREATE POLICY \"Users can update own profile\" \n  ON profiles FOR UPDATE \n  USING (auth.uid() = user_id);\n  ```"
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "auth-security-enhancements",
+    "heading": "Security Enhancements",
+    "level": 4,
+    "path": "II. Component Breakdown & Guidelines -> C. Authentication (Supabase) -> Security Enhancements",
+    "content": "- Configure proper password policies\n- Set up MFA for additional security\n- Implement proper JWT expiration settings\n- Use refresh tokens for better security"
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "rate-limiting-breakdown",
+    "heading": "D. Rate Limiting (Cloudflare KV)",
+    "level": 2,
+    "path": "II. Component Breakdown & Guidelines -> D. Rate Limiting (Cloudflare KV)",
+    "content": null
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "ratelimit-enhanced-implementation",
+    "heading": "Enhanced Implementation",
+    "level": 4,
+    "path": "II. Component Breakdown & Guidelines -> D. Rate Limiting (Cloudflare KV) -> Enhanced Implementation",
+    "content": "- Multi-tiered approach (global, user, endpoint)\n- Automatic cleanup via TTL\n- Fair throttling with backoff recommendations\n- Subscription-based tier limits"
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "database-strategy",
+    "heading": "E. Database Strategy (D1 or Supabase)",
+    "level": 2,
+    "path": "II. Component Breakdown & Guidelines -> E. Database Strategy (D1 or Supabase)",
+    "content": null
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "database-d1-setup",
+    "heading": "D1 Setup (Preferred for Edge Locality)",
+    "level": 4,
+    "path": "II. Component Breakdown & Guidelines -> E. Database Strategy (D1 or Supabase) -> D1 Setup (Preferred for Edge Locality)",
+    "content": "- Create properly indexed tables:\n  ```sql\n  -- Example schema with proper indexes\n  CREATE TABLE profiles (\n      user_id TEXT PRIMARY KEY,\n      display_name TEXT NOT NULL,\n      profile_data TEXT,\n      subscription_tier TEXT DEFAULT 'free',\n      last_active INTEGER DEFAULT (unixepoch()),\n      created_at INTEGER DEFAULT (unixepoch()),\n      updated_at INTEGER DEFAULT (unixepoch())\n  );\n\n  CREATE INDEX idx_profiles_subscription ON profiles(subscription_tier);\n  CREATE INDEX idx_profiles_last_active ON profiles(last_active);\n  ```\n\n- Implement migrations system:\n  ```javascript\n  // migrations/001_initial_schema.sql\n  // migrations/002_add_subscription_tier.sql\n\n  // Apply migrations via wrangler\n  // wrangler d1 execute DB_NAME --file=./migrations/001_initial_schema.sql\n  ```\n\n- Optimize query patterns for performance:\n  ```javascript\n  // Use prepared statements with parameters\n  const getUserProfile = env.DB\n    .prepare('SELECT * FROM profiles WHERE user_id = ?')\n    .bind(userId);\n\n  const { results } = await getUserProfile.all();\n  ```"
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "database-supabase-alternative",
+    "heading": "Supabase DB Alternative",
+    "level": 4,
+    "path": "II. Component Breakdown & Guidelines -> E. Database Strategy (D1 or Supabase) -> Supabase DB Alternative",
+    "content": "- Use Row Level Security for enhanced protection:\n  ```sql\n  -- Enable RLS\n  ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;\n\n  -- Create policies\n  CREATE POLICY \"Allow users to read own profile\"\n  ON profiles FOR SELECT\n  USING (auth.uid() = user_id);\n  ```\n\n- Implement database functions for complex operations\n- Use foreign keys and constraints for data integrity"
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "llm-integration-breakdown",
+    "heading": "F. LLM Integration",
+    "level": 2,
+    "path": "II. Component Breakdown & Guidelines -> F. LLM Integration",
+    "content": null
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "llm-implementation-strategy",
+    "heading": "Implementation Strategy",
+    "level": 4,
+    "path": "II. Component Breakdown & Guidelines -> F. LLM Integration -> Implementation Strategy",
+    "content": "- Set up proper error handling for API failures\n- Implement response validation to prevent injection\n- Consider fallback to simpler models during high load\n- Implement proper prompt engineering practices\n- Track token usage for billing purposes"
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "llm-cost-optimization",
+    "heading": "Cost Optimization",
+    "level": 4,
+    "path": "II. Component Breakdown & Guidelines -> F. LLM Integration -> Cost Optimization",
+    "content": "- Cache common responses with appropriate TTL\n- Use smaller models for simpler tasks\n- Implement token budget enforcement\n- Consider batching requests where appropriate"
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "payments-breakdown",
+    "heading": "G. Payments (Stripe)",
+    "level": 2,
+    "path": "II. Component Breakdown & Guidelines -> G. Payments (Stripe)",
+    "content": null
+  },
+  {
+    "source_file": "guideline-part-2",
+    "id": "payments-enhanced-implementation",
+    "heading": "Enhanced Implementation",
+    "level": 4,
+    "path": "II. Component Breakdown & Guidelines -> G. Payments (Stripe) -> Enhanced Implementation",
+    "content": "- Implement idempotency keys for all API calls\n- Store subscription metadata in D1/Supabase\n- Handle webhook events properly for subscription lifecycle\n- Implement proper error handling for payment failures"
+  }
+]

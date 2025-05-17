@@ -1,0 +1,74 @@
+[
+  {
+    "source_file": "guideline-part-1",
+    "id": "overall-introduction",
+    "heading": "Introduction",
+    "level": 0,
+    "path": "",
+    "content": "This document outlines an optimized architecture for building cost-effective, efficient, and secure web applications utilizing Cloudflare's edge network and Supabase services."
+  },
+  {
+    "source_file": "guideline-part-1",
+    "id": "i-overall-architecture",
+    "heading": "I. Overall Architecture",
+    "level": 1,
+    "path": "I. Overall Architecture",
+    "content": null
+  },
+  {
+    "source_file": "guideline-part-1",
+    "id": "frontend-overall",
+    "heading": "Frontend (Vite + JS Framework)",
+    "level": 3,
+    "path": "I. Overall Architecture -> Frontend (Vite + JS Framework)",
+    "content": "- Static site built with Vite (React, Vue, Svelte, or vanilla JS)\n- Hosted on Cloudflare Pages for global distribution and CI/CD\n- Service Worker implementation for offline capabilities and asset caching\n- Responsible for UI, user input, Supabase auth integration, and backend API calls"
+  },
+  {
+    "source_file": "guideline-part-1",
+    "id": "backend-overall",
+    "heading": "Backend (Cloudflare Worker)",
+    "level": 3,
+    "path": "I. Overall Architecture -> Backend (Cloudflare Worker)",
+    "content": "- Handles API requests from the frontend\n- Validates and sanitizes input data\n- Verifies Supabase JWTs for authentication\n- Implements tiered rate limiting (KV)\n- Constructs and validates LLM prompts\n- Caches common LLM responses (KV/D1)\n- Routes requests to appropriate services\n- Streams responses back to frontend when appropriate\n- Handles Stripe webhooks with signature verification\n- Implements proper error handling and logging"
+  },
+  {
+    "source_file": "guideline-part-1",
+    "id": "authentication-overall",
+    "heading": "Authentication (Supabase)",
+    "level": 3,
+    "path": "I. Overall Architecture -> Authentication (Supabase)",
+    "content": "- Manages user sign-up, login, password resets, and JWT token generation\n- Implements refresh token strategy for better security\n- Provides user identity information to frontend and backend\n- Enforces principle of least privilege (anon key for frontend, limited service key usage)\n- Integrates with Stripe for subscription status"
+  },
+  {
+    "source_file": "guideline-part-1",
+    "id": "rate-limiting-overall",
+    "heading": "Rate Limiting (Cloudflare KV)",
+    "level": 3,
+    "path": "I. Overall Architecture -> Rate Limiting (Cloudflare KV)",
+    "content": "- Implements hierarchical rate limiting (global, user, endpoint)\n- Stores counters with appropriate TTLs for automatic cleanup\n- Provides graceful degradation when limits are reached"
+  },
+  {
+    "source_file": "guideline-part-1",
+    "id": "profile-storage-overall",
+    "heading": "Profile Storage (Cloudflare D1 or Supabase DB)",
+    "level": 3,
+    "path": "I. Overall Architecture -> Profile Storage (Cloudflare D1 or Supabase DB)",
+    "content": "- D1: Edge-native SQL database with minimal latency from Workers\n- Supabase DB: PostgreSQL with powerful features like row-level security\n- Implements proper data modeling with indexes for common queries\n- Enforces data validation and integrity constraints"
+  },
+  {
+    "source_file": "guideline-part-1",
+    "id": "llm-service-integration-overall",
+    "heading": "LLM Service Integration",
+    "level": 3,
+    "path": "I. Overall Architecture -> LLM Service Integration",
+    "content": "- External API (OpenAI, Anthropic, Google Gemini) or Cloudflare Workers AI\n- Implements response caching for common queries\n- Token usage tracking and budget enforcement\n- Robust error handling for service disruptions\n- Response validation to prevent injection attacks"
+  },
+  {
+    "source_file": "guideline-part-1",
+    "id": "payments-overall",
+    "heading": "Payments (Stripe)",
+    "level": 3,
+    "path": "I. Overall Architecture -> Payments (Stripe)",
+    "content": "- Handles payment processing via Checkout/Elements\n- Webhook integration for subscription events\n- Strong verification of webhook signatures\n- Clear separation of payment UI from application logic"
+  }
+]

@@ -1,0 +1,16 @@
+{
+	"name": "testsuite-worker",
+	"version": "0.0.0",
+	"private": true,
+	"scripts": {
+		"deploy": "wrangler deploy",
+		"dev": "wrangler dev",
+		"start": "wrangler dev"
+	},
+	"devDependencies": {
+		"wrangler": "^4.15.2"
+	},
+	"dependencies": {
+		"hono": "^4.7.10"
+	}
+}
