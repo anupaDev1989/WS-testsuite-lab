@@ -8,7 +8,10 @@ export const signUp = async (email: string, password: string) => {
 };
 
 export const signIn = async (email: string, password: string) => {
-  const { user, error } = await supabase.auth.signIn({ email, password });
+  const { data: { user }, error } = await supabase.auth.signInWithPassword({ 
+    email, 
+    password 
+  });
   if (error) throw Error(error.message);
   return user;
 };
