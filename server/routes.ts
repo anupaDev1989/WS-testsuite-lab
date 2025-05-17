@@ -1,11 +1,58 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { 
+  workerStatusMiddleware, 
+  workerTestMiddleware, 
+  checkWorkerStatus, 
+  executeWorkerTest 
+} from "./cloudflare";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes for the development testing environment
   app.get('/api/test/ping', (req, res) => {
-    res.json({ message: 'pong', server: 'Express', timestamp: new Date() });
+    res.json({ message: 'pong', server: 'Cloudflare Worker', timestamp: new Date() });
+  });
+
+  // Cloudflare Worker API endpoints
+  app.get('/api/cloudflare/status', workerStatusMiddleware);
+  app.post('/api/cloudflare/test', workerTestMiddleware);
+  
+  // List Cloudflare Workers
+  app.get('/api/cloudflare/workers', async (req, res) => {
+    try {
+      const status = await checkWorkerStatus();
+      res.json(status);
+    } catch (error) {
+      res.status(500).json({ 
+        status: 'error', 
+        message: 'Error listing workers',
+        error: error.message 
+      });
+    }
+  });
+
+  // Execute test against a specific worker
+  app.post('/api/cloudflare/execute', async (req, res) => {
+    const { method, url, headers, body } = req.body;
+    
+    if (!method || !url) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Method and URL are required'
+      });
+    }
+    
+    try {
+      const result = await executeWorkerTest(method, url, headers, body);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({
+        status: 'error',
+        message: 'Error executing worker test',
+        error: error.message
+      });
+    }
   });
 
   // Endpoint to get mock user data
@@ -34,7 +81,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           active: false
         }
       ].filter(user => !activeFilter || user.active)
-       .slice(0, limit)
+       .slice(0, limit),
+      worker: 'Cloudflare Worker',
+      cf_ray: `${Math.random().toString(36).substring(2, 15)}`,
+      worker_id: `worker-${Math.floor(Math.random() * 1000)}`
     });
   });
 
@@ -45,7 +95,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       name: req.body.name || "New User",
       email: req.body.email || "newuser@example.com",
       active: true,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      worker: 'Cloudflare Worker',
+      cf_ray: `${Math.random().toString(36).substring(2, 15)}`,
+      worker_id: `worker-${Math.floor(Math.random() * 1000)}`
     });
   });
 
@@ -57,7 +110,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       name: req.body.name || "Updated User",
       email: req.body.email || "updated@example.com",
       active: true,
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      worker: 'Cloudflare Worker',
+      cf_ray: `${Math.random().toString(36).substring(2, 15)}`,
+      worker_id: `worker-${Math.floor(Math.random() * 1000)}`
     });
   });
 
@@ -65,7 +121,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/users/:id', (req, res) => {
     res.json({
       success: true,
-      message: "User deleted successfully"
+      message: "User deleted successfully",
+      worker: 'Cloudflare Worker',
+      cf_ray: `${Math.random().toString(36).substring(2, 15)}`,
+      worker_id: `worker-${Math.floor(Math.random() * 1000)}`
     });
   });
 
@@ -79,7 +138,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         { id: 1, name: "Row 1" },
         { id: 2, name: "Row 2" },
         { id: 3, name: "Row 3" }
-      ]
+      ],
+      worker: 'Cloudflare Worker',
+      cf_ray: `${Math.random().toString(36).substring(2, 15)}`,
+      worker_id: `worker-${Math.floor(Math.random() * 1000)}`
     });
   });
 
@@ -94,12 +156,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: 1,
           username: 'admin',
           role: 'administrator'
-        }
+        },
+        worker: 'Cloudflare Worker',
+        cf_ray: `${Math.random().toString(36).substring(2, 15)}`,
+        worker_id: `worker-${Math.floor(Math.random() * 1000)}`
       });
     } else {
       res.status(401).json({
         success: false,
-        message: "Invalid credentials"
+        message: "Invalid credentials",
+        worker: 'Cloudflare Worker',
+        cf_ray: `${Math.random().toString(36).substring(2, 15)}`,
+        worker_id: `worker-${Math.floor(Math.random() * 1000)}`
       });
     }
   });
