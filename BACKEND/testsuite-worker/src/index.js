@@ -803,7 +803,7 @@ var compose = (middleware, onError, onNotFound) => {
       if (handler) {
         try {
           res = await handler(context, () => dispatch(i + 1));
-        } catch (err) {
+      } catch (err) {
           if (err instanceof Error && onError) {
             context.error = err;
             res = await onError(err, context);
@@ -2278,7 +2278,21 @@ var Hono2 = class extends Hono$1 {
 globalThis.process = _process;
 globalThis.console = workerdConsole;
 const app = new Hono2();
-app.get("/api/", (c) => c.json({ name: "Cloudflare" }));
+
+app.use('*', cors({
+  origin: '*',
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization'],
+}))
+
+app.get('/health', (c) => {
+  return c.json({
+    status: 'connected',
+    message: 'Worker is running',
+    timestamp: new Date().toISOString()
+  })
+})
+
 export {
   app as default
 };

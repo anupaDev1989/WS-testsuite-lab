@@ -7,8 +7,26 @@ interface StatusBarProps {
 }
 
 export default function StatusBar({ backend, testResult }: StatusBarProps) {
-  // Simulate connection status for Cloudflare Worker
-  const isConnected = true; // In a real app, this would be a state that checks actual connection status
+  const [isConnected, setIsConnected] = useState(false);
+  const [workerInfo, setWorkerInfo] = useState<{ status: string, message: string } | null>(null);
+
+  useEffect(() => {
+    const checkWorkerStatus = async () => {
+      try {
+        const response = await fetch('https://testsuite-worker.des9891sl.workers.dev/health');
+        const data = await response.json();
+        setIsConnected(true);
+        setWorkerInfo(data);
+      } catch (error) {
+        setIsConnected(false);
+        setWorkerInfo(null);
+      }
+    };
+    
+    checkWorkerStatus();
+    const interval = setInterval(checkWorkerStatus, 30000); // Check every 30 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="bg-[#131A29] border-t border-[#1C2333] p-2 text-xs text-gray-400 flex items-center justify-between">
