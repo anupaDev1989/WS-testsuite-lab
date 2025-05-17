@@ -1,0 +1,175 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 20 14.3% 4.1%;
+  --muted: 60 4.8% 95.9%;
+  --muted-foreground: 25 5.3% 44.7%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 20 14.3% 4.1%;
+  --card: 0 0% 100%;
+  --card-foreground: 20 14.3% 4.1%;
+  --border: 20 5.9% 90%;
+  --input: 20 5.9% 90%;
+  --primary: 207 90% 54%;
+  --primary-foreground: 211 100% 99%;
+  --secondary: 60 4.8% 95.9%;
+  --secondary-foreground: 24 9.8% 10%;
+  --accent: 60 4.8% 95.9%;
+  --accent-foreground: 24 9.8% 10%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 60 9.1% 97.8%;
+  --ring: 20 14.3% 4.1%;
+  --radius: 0.5rem;
+
+  /* Custom colors for Dev Testing Environment */
+  --primary-bg: 222 30% 10%; /* #0E1525 */
+  --secondary-bg: 0 0% 96%; /* #F5F5F5 */
+  --accent-color: 204 100% 50%; /* #0098FF */
+  --terminal-bg: 0 0% 12%; /* #1E1E1E */
+  --success-color: 142 100% 39%; /* #00C853 */
+  --error-color: 0 84% 58%; /* #F44336 */
+  --warning-color: 45 100% 51%; /* #FFC107 */
+  --dark-100: 223 27% 16%; /* #1C2333 */
+  --dark-200: 220 28% 14%; /* #171D2D */
+  --dark-300: 220 34% 13%; /* #131A29 */
+  
+  /* Chart colors */
+  --chart-1: var(--success-color);
+  --chart-2: var(--accent-color);
+  --chart-3: var(--error-color);
+  --chart-4: var(--warning-color);
+  --chart-5: 273 100% 50%;
+}
+
+.dark {
+  --background: 240 10% 3.9%;
+  --foreground: 0 0% 98%;
+  --muted: 240 3.7% 15.9%;
+  --muted-foreground: 240 5% 64.9%;
+  --popover: 240 10% 3.9%;
+  --popover-foreground: 0 0% 98%;
+  --card: 240 10% 3.9%;
+  --card-foreground: 0 0% 98%;
+  --border: 240 3.7% 15.9%;
+  --input: 240 3.7% 15.9%;
+  --primary: 207 90% 54%;
+  --primary-foreground: 211 100% 99%;
+  --secondary: 240 3.7% 15.9%;
+  --secondary-foreground: 0 0% 98%;
+  --accent: 240 3.7% 15.9%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --ring: 240 4.9% 83.9%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-[#0E1525] text-white font-sans antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .font-mono {
+    font-family: 'IBM Plex Mono', monospace;
+  }
+}
+
+/* Terminal styling */
+.terminal-text {
+  color: #FFFFFF;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.terminal-prompt {
+  color: #00C853;
+}
+
+.terminal-error {
+  color: #F44336;
+}
+
+.terminal-warning {
+  color: #FFC107;
+}
+
+.terminal-info {
+  color: #0098FF;
+}
+
+.terminal-method-get {
+  color: #2196F3;
+}
+
+.terminal-method-post {
+  color: #4CAF50;
+}
+
+.terminal-method-put {
+  color: #FF9800;
+}
+
+.terminal-method-delete {
+  color: #F44336;
+}
+
+.terminal-json-key {
+  color: #9CDCFE;
+}
+
+.terminal-json-value {
+  color: #CE9178;
+}
+
+.terminal-json-number {
+  color: #B5CEA8;
+}
+
+.terminal-json-boolean {
+  color: #569CD6;
+}
+
+.terminal-command {
+  color: #DCDCAA;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1E1E1E;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3E3E3E;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Panel resize handle */
+.panel-resize-handle {
+  width: 4px;
+  background-color: rgba(255, 255, 255, 0.1);
+  cursor: col-resize;
+  transition: background-color 0.2s;
+}
+
+.panel-resize-handle:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
