@@ -10,6 +10,9 @@
 	"assets": {
 		"not_found_handling": "single-page-application"
 	},
+	"vars": {
+		"SUPABASE_CALLBACK_URL": "https://${CF_PAGES_URL}/auth/callback"
+	},
 	"observability": {
 		"enabled": true
 	}

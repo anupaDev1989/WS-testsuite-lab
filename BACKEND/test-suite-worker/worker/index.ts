@@ -7,6 +7,12 @@ export default {
         name: "Cloudflare",
       });
     }
-		return new Response(null, { status: 404 });
+
+    if (url.pathname.startsWith("/auth/callback")) {
+      // Handle Supabase auth callback
+      return Response.redirect(url.origin);
+    }
+
+    return new Response(null, { status: 404 });
   },
 } satisfies ExportedHandler<Env>;
