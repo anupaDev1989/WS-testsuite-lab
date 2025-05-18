@@ -36,7 +36,7 @@ app.post('/api/test', async (c) => {
   const body = await c.req.json()
   
   return c.json({
-    status: 'success',
+    status: 'success..!!',
     data: body,
     processingTime: Math.random() * 100,
     timestamp: new Date().toISOString()
