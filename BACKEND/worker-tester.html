@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloudflare Worker Tester</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    h1 {
+      color: #0098FF;
+      margin-bottom: 20px;
+    }
+    .card {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    select, input, textarea {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    textarea {
+      min-height: 120px;
+      font-family: monospace;
+    }
+    button {
+      background-color: #0098FF;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0080DC;
+    }
+    .status {
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 4px;
+    }
+    .success {
+      background-color: #e7f7ed;
+      color: #0d6832;
+    }
+    .error {
+      background-color: #fde7e7;
+      color: #c41e1e;
+    }
+    .response {
+      background-color: #131A29;
+      color: white;
+      padding: 15px;
+      border-radius: 4px;
+      overflow: auto;
+      font-family: monospace;
+      max-height: 300px;
+    }
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+      margin-right: 10px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <h1>Cloudflare Worker Tester</h1>
+  
+  <div class="card">
+    <h2>Worker Connection Test</h2>
+    <div class="form-group">
+      <label for="workerUrl">Worker URL</label>
+      <input type="text" id="workerUrl" value="https://testsuite-worker.des9891sl.workers.dev">
+    </div>
+    <button id="testConnection">Test Connection</button>
+    <div id="connectionStatus" class="status"></div>
+  </div>
+  
+  <div class="card">
+    <h2>Request Tester</h2>
+    <div class="form-group">
+      <label for="endpoint">Endpoint</label>
+      <select id="endpoint">
+        <option value="/health">Health Check (GET)</option>
+        <option value="/api/users">Get Users (GET)</option>
+        <option value="/api/test">Test Endpoint (POST)</option>
+        <option value="custom">Custom Endpoint</option>
+      </select>
+    </div>
+    
+    <div id="customEndpointGroup" class="form-group" style="display:none;">
+      <label for="customEndpoint">Custom Endpoint</label>
+      <input type="text" id="customEndpoint" placeholder="/your-endpoint">
+    </div>
+    
+    <div class="form-group">
+      <label for="method">Method</label>
+      <select id="method">
+        <option value="GET">GET</option>
+        <option value="POST">POST</option>
+        <option value="PUT">PUT</option>
+        <option value="DELETE">DELETE</option>
+      </select>
+    </div>
+    
+    <div class="form-group">
+      <label for="requestBody">Request Body (for POST/PUT)</label>
+      <textarea id="requestBody">{
+  "message": "Hello from the tester"
+}</textarea>
+    </div>
+    
+    <button id="sendRequest">Send Request</button>
+    <div id="requestStatus" class="status"></div>
+    
+    <div id="responseContainer" style="display:none; margin-top: 20px;">
+      <h3>Response</h3>
+      <pre id="responseBody" class="response"></pre>
+    </div>
+  </div>
+
+  <script>
+    // Elements
+    const workerUrlInput = document.getElementById('workerUrl');
+    const testConnectionBtn = document.getElementById('testConnection');
+    const connectionStatus = document.getElementById('connectionStatus');
+    const endpointSelect = document.getElementById('endpoint');
+    const customEndpointGroup = document.getElementById('customEndpointGroup');
+    const customEndpointInput = document.getElementById('customEndpoint');
+    const methodSelect = document.getElementById('method');
+    const requestBodyTextarea = document.getElementById('requestBody');
+    const sendRequestBtn = document.getElementById('sendRequest');
+    const requestStatus = document.getElementById('requestStatus');
+    const responseContainer = document.getElementById('responseContainer');
+    const responseBody = document.getElementById('responseBody');
+    
+    // Test connection to worker
+    testConnectionBtn.addEventListener('click', async () => {
+      const workerUrl = workerUrlInput.value.trim();
+      if (!workerUrl) {
+        connectionStatus.textContent = 'Please enter a worker URL';
+        connectionStatus.className = 'status error';
+        return;
+      }
+      
+      connectionStatus.innerHTML = '<div class="loading"></div> Testing connection...';
+      connectionStatus.className = 'status';
+      
+      try {
+        const response = await fetch(`${workerUrl}/health`);
+        const data = await response.json();
+        
+        if (data.status === 'connected') {
+          connectionStatus.textContent = '✅ Connected successfully!';
+          connectionStatus.className = 'status success';
+        } else {
+          connectionStatus.textContent = '⚠️ Worker responded but status is not "connected"';
+          connectionStatus.className = 'status error';
+        }
+      } catch (error) {
+        connectionStatus.textContent = `❌ Connection failed: ${error.message}`;
+        connectionStatus.className = 'status error';
+      }
+    });
+    
+    // Toggle custom endpoint field
+    endpointSelect.addEventListener('change', () => {
+      if (endpointSelect.value === 'custom') {
+        customEndpointGroup.style.display = 'block';
+      } else {
+        customEndpointGroup.style.display = 'none';
+        
+        // Set method based on selected endpoint
+        if (endpointSelect.value === '/health' || endpointSelect.value === '/api/users') {
+          methodSelect.value = 'GET';
+        } else if (endpointSelect.value === '/api/test') {
+          methodSelect.value = 'POST';
+        }
+      }
+    });
+    
+    // Send request
+    sendRequestBtn.addEventListener('click', async () => {
+      const workerUrl = workerUrlInput.value.trim();
+      const method = methodSelect.value;
+      const endpoint = endpointSelect.value === 'custom' 
+        ? customEndpointInput.value 
+        : endpointSelect.value;
+      
+      if (!workerUrl) {
+        requestStatus.textContent = 'Please enter a worker URL';
+        requestStatus.className = 'status error';
+        return;
+      }
+      
+      if (!endpoint) {
+        requestStatus.textContent = 'Please enter an endpoint';
+        requestStatus.className = 'status error';
+        return;
+      }
+      
+      requestStatus.innerHTML = '<div class="loading"></div> Sending request...';
+      requestStatus.className = 'status';
+      responseContainer.style.display = 'none';
+      
+      const url = `${workerUrl}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
+      
+      try {
+        const options = {
+          method,
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        };
+        
+        if ((method === 'POST' || method === 'PUT') && requestBodyTextarea.value.trim()) {
+          try {
+            options.body = requestBodyTextarea.value.trim();
+          } catch (e) {
+            requestStatus.textContent = 'Invalid JSON in request body';
+            requestStatus.className = 'status error';
+            return;
+          }
+        }
+        
+        const startTime = Date.now();
+        const response = await fetch(url, options);
+        const duration = Date.now() - startTime;
+        
+        let data;
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          data = await response.json();
+        } else {
+          data = await response.text();
+        }
+        
+        requestStatus.textContent = `✅ Request succeeded (${response.status}) in ${duration}ms`;
+        requestStatus.className = 'status success';
+        
+        responseContainer.style.display = 'block';
+        responseBody.textContent = typeof data === 'object' 
+          ? JSON.stringify(data, null, 2) 
+          : data;
+      } catch (error) {
+        requestStatus.textContent = `❌ Request failed: ${error.message}`;
+        requestStatus.className = 'status error';
+      }
+    });
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      // Auto test connection on load
+      setTimeout(() => testConnectionBtn.click(), 500);
+    });
+  </script>
+</body>
+</html>
