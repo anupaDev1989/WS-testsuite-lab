@@ -136,8 +136,8 @@ export function WorkerConnectionTest() {
             {connectionStatus === 'connected' && (
               <Alert className="bg-green-50 border-green-200">
                 <Check className="h-4 w-4 text-green-500" />
-                <AlertTitle>Connected</AlertTitle>
-                <AlertDescription>
+                <AlertTitle className="text-black font-medium">Connected</AlertTitle>
+                <AlertDescription className="text-black">
                   Successfully connected to the Cloudflare Worker at https://testsuite-worker.des9891sl.workers.dev
                 </AlertDescription>
               </Alert>
