@@ -17,24 +17,24 @@ function NavBar() {
       <div className="container mx-auto flex items-center">
         <div className="flex space-x-4">
           <Link href="/">
-            <a className={`flex items-center px-3 py-2 rounded-md text-sm font-medium ${
+            <div className={`flex items-center px-3 py-2 rounded-md text-sm font-medium ${
               location === '/' 
                 ? 'bg-[#1C2333] text-white' 
                 : 'text-gray-300 hover:bg-[#1C2333] hover:text-white'
             }`}>
               <LayoutDashboard className="w-4 h-4 mr-2" />
               Testing Dashboard
-            </a>
+            </div>
           </Link>
           <Link href="/worker-test">
-            <a className={`flex items-center px-3 py-2 rounded-md text-sm font-medium ${
+            <div className={`flex items-center px-3 py-2 rounded-md text-sm font-medium ${
               location === '/worker-test' 
                 ? 'bg-[#1C2333] text-white' 
                 : 'text-gray-300 hover:bg-[#1C2333] hover:text-white'
             }`}>
               <CloudCog className="w-4 h-4 mr-2" />
               Cloudflare Worker Test
-            </a>
+            </div>
           </Link>
         </div>
       </div>
