@@ -1,6 +1,8 @@
 import { BackendType, TestResult } from '@/types';
 import { format } from 'date-fns';
 
+import { useState } from 'react';
+
 interface StatusBarProps {
   backend: BackendType;
   testResult: TestResult | null;
