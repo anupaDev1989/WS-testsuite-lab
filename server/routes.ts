@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import axios from 'axios';
 import { 
   workerStatusMiddleware, 
   workerTestMiddleware, 
@@ -8,15 +9,67 @@ import {
   executeWorkerTest 
 } from "./cloudflare";
 
+const DIRECT_WORKER_MODE = process.env.DIRECT_WORKER_MODE === 'true';
+const WORKER_URL = 'https://testsuite-worker.des9891sl.workers.dev';
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes for the development testing environment
   app.get('/api/test/ping', (req, res) => {
     res.json({ message: 'pong', server: 'Cloudflare Worker', timestamp: new Date() });
   });
 
-  // Cloudflare Worker API endpoints
-  app.get('/api/cloudflare/status', workerStatusMiddleware);
-  app.post('/api/cloudflare/test', workerTestMiddleware);
+  // Worker status endpoint
+  app.get('/api/cloudflare/status', async (req, res) => {
+    if (DIRECT_WORKER_MODE) {
+      try {
+        const response = await axios.get(`${WORKER_URL}/health`);
+        res.json({
+          status: 'connected',
+          message: 'Successfully connected to Worker (Direct Mode)',
+          worker: response.data
+        });
+      } catch (error) {
+        res.status(500).json({
+          status: 'error',
+          message: 'Failed to connect to Worker (Direct Mode)',
+          error: error.message
+        });
+      }
+    } else {
+      return workerStatusMiddleware(req, res);
+    }
+  });
+
+  // Worker test endpoint
+  app.post('/api/cloudflare/test', (req, res) => {
+    if (DIRECT_WORKER_MODE) {
+      const { method, url, headers, body } = req.body;
+      axios({
+        method,
+        url,
+        headers,
+        data: body
+      })
+      .then(response => {
+        res.json({
+          status: 'success',
+          statusCode: response.status,
+          duration: 0,
+          response: response.data,
+          headers: response.headers
+        });
+      })
+      .catch(error => {
+        res.status(500).json({
+          status: 'error',
+          message: error.message,
+          response: error.response?.data
+        });
+      });
+    } else {
+      return workerTestMiddleware(req, res);
+    }
+  });
   
   // List Cloudflare Workers
   app.get('/api/cloudflare/workers', async (req, res) => {
