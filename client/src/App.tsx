@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import DevTestingEnvironment from "@/pages/DevTestingEnvironment";
 import WorkerTestPage from "@/pages/WorkerTestPage";
+import UpdatePasswordPage from "@/pages/UpdatePasswordPage";
 import { ThemeProvider } from "next-themes";
 import { CloudCog, LayoutDashboard } from "lucide-react";
 
@@ -42,7 +43,7 @@ function NavBar() {
   );
 }
 
-function Router() {
+const Router = () => {
   return (
     <div className="flex flex-col h-screen">
       <NavBar />
@@ -50,17 +51,18 @@ function Router() {
         <Switch>
           <Route path="/" component={DevTestingEnvironment} />
           <Route path="/worker-test" component={WorkerTestPage} />
+          <Route path="/update-password" component={UpdatePasswordPage} />
           <Route component={NotFound} />
         </Switch>
       </div>
     </div>
   );
-}
+};
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="dark">
+      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
         <TooltipProvider>
           <Toaster />
           <Router />

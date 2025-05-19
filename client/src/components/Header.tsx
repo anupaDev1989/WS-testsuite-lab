@@ -40,6 +40,7 @@ export default function Header({ backend, onRunTest, isExecuting, isLoggedIn, on
             <Button
               onClick={async () => {
                 await signOut();
+                localStorage.removeItem('isLoggedIn'); // Clear persisted login state
                 onLogout();
               }}
               variant="ghost"

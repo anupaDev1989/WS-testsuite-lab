@@ -30,6 +30,14 @@ export default function DevTestingEnvironment() {
     }
   }, [categories]);
 
+  // Check localStorage for persisted login state on mount
+  useEffect(() => {
+    const storedLoginStatus = localStorage.getItem('isLoggedIn');
+    if (storedLoginStatus === 'true') {
+      setIsLoggedIn(true);
+    }
+  }, []);
+
   const { executeTest, terminalLines, isExecuting, clearTerminal } = useTestExecution();
 
   const handleRunTest = async () => {

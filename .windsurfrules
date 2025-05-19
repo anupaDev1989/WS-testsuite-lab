@@ -1,4 +1,8 @@
-Refer to the guidelines, basic policies and desired methods to use in guidelines-p1.json, guidelines-p2.json or guidelines-p3.json when you are building components. use following index to find the exact guideline file to refer:
+- use sequential thinking MCP to plan the steps to be taken to implement the changes
+- use puppetier MCP to for debugging and testing with browser
+- use supabase MCP to interact with supabase database
+
+- Refer to the guidelines, basic policies and desired methods to use in guidelines-p1.json, guidelines-p2.json or guidelines-p3.json when you are building components. use following index to find the exact guideline file to refer:
 
 [
   {
@@ -45,8 +49,11 @@ Refer to the guidelines, basic policies and desired methods to use in guidelines
   }
 ]
 
-IMPORTANT: cloudflare worker script is at BACKEND/testsuite-worker/src/index.js. it will be deployed when the replit project is run.
 
 once the changes are successfully implemented, update the README.md 
 
 Cloudflare URL: https://testsuite-worker.des9891sl.workers.dev/
+
+- use sequential thinking and puppetier mcps
+- cloudflare worker script is located at /Users/anupadesilva/Documents/G_CLOUD/AppDev Folder/testsuidelab/Test-Suite-Lab/BACKEND/testsuite-worker/src/index.js
+- after any modification to the worker script, run wrangler deploy terminal command in /Users/anupadesilva/Documents/G_CLOUD/AppDev Folder/testsuidelab/Test-Suite-Lab/BACKEND/testsuite-worker/
