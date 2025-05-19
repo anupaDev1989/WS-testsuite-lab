@@ -26,6 +26,20 @@ const DEFAULT_TESTS: TestCase[] = [
     method: 'POST',
     description: 'General purpose test endpoint',
   },
+  {
+    id: 'protected-no-token',
+    name: 'Protected Route (No Token)',
+    endpoint: '/api/protected-data',
+    method: 'GET',
+    description: 'Test protected route without an auth token (expects 401)',
+  },
+  {
+    id: 'protected-with-token',
+    name: 'Protected Route (With Token)',
+    endpoint: '/api/protected-data',
+    method: 'GET',
+    description: 'Test protected route with an auth token (expects 200). You MUST add a valid JWT to the Headers section (e.g., { "Authorization": "Bearer YOUR_JWT_HERE" }).',
+  },
 ];
 
 export function WorkerTestDashboard() {
@@ -55,16 +69,16 @@ export function WorkerTestDashboard() {
       let response;
       switch (config.method) {
         case 'GET':
-          response = await workerService.get(config.endpoint);
+          response = await workerService.get(config.endpoint, config.body, config.headers);
           break;
         case 'POST':
-          response = await workerService.post(config.endpoint, config.body);
+          response = await workerService.post(config.endpoint, config.body, config.headers);
           break;
         case 'PUT':
-          response = await workerService.put(config.endpoint, config.body);
+          response = await workerService.put(config.endpoint, config.body, config.headers);
           break;
         case 'DELETE':
-          response = await workerService.delete(config.endpoint);
+          response = await workerService.delete(config.endpoint, undefined, config.headers);
           break;
         default:
           throw new Error(`Unsupported method: ${config.method}`);
