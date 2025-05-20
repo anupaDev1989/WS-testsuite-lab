@@ -94,6 +94,118 @@ app.post('/api/test', async (c) => {
   })
 })
 
+// --- LLM Integration --- 
+
+// Function to call Gemini API
+async function callGeminiApi(prompt, apiKey) {
+  const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+  
+  const requestBody = {
+    contents: [
+      {
+        parts: [{ text: prompt }],
+      },
+    ],
+    // Optional: Add generationConfig and safetySettings as needed
+    // generationConfig: {
+    //   temperature: 0.7,
+    //   maxOutputTokens: 1000,
+    // },
+  };
+
+  try {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error(`Gemini API Error: ${response.status} ${response.statusText}`, errorBody);
+      throw new Error(`Gemini API request failed with status ${response.status}: ${errorBody}`);
+    }
+
+    const data = await response.json();
+    
+    // Extract the text from the response
+    // Based on Gemini API structure: data.candidates[0].content.parts[0].text
+    if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
+      return data.candidates[0].content.parts[0].text;
+    } else {
+      console.error('Gemini API Error: Unexpected response structure', data);
+      throw new Error('Failed to parse Gemini response: No valid candidate text found.');
+    }
+  } catch (error) {
+    console.error('Error calling Gemini API:', error);
+    throw error; // Re-throw the error to be caught by the endpoint handler
+  }
+}
+
+// Endpoint for Gemini LLM
+app.post('/api/llm/gemini', async (c) => {
+  try {
+    const { prompt } = await c.req.json();
+    if (!prompt) {
+      return c.json({ error: 'Prompt is required' }, 400);
+    }
+
+    const apiKey = c.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error('GEMINI_API_KEY not configured in worker environment.');
+      return c.json({ error: 'LLM service not configured' }, 500);
+    }
+
+    const llmResponse = await callGeminiApi(prompt, apiKey);
+    return c.json({ response: llmResponse });
+
+  } catch (error) {
+    console.error('Error in /api/llm/gemini endpoint:', error.message);
+    return c.json({ error: 'Failed to get response from LLM', details: error.message }, 500);
+  }
+});
+
+
+// --- Placeholder for Secondary LLM Integration ---
+/*
+async function callSecondaryLlmApi(prompt, apiKey) {
+  // TODO: Implement API call to a secondary LLM provider
+  console.log('callSecondaryLlmApi called with prompt:', prompt);
+  // const API_URL = `SECONDARY_LLM_API_ENDPOINT?key=${apiKey}`;
+  // const requestBody = { ... };
+  // const response = await fetch(API_URL, { ... });
+  // return await response.json();
+  return Promise.resolve({ response: "This is a response from the secondary LLM (placeholder)." });
+}
+
+app.post('/api/llm/secondary', async (c) => {
+  try {
+    const { prompt } = await c.req.json();
+    if (!prompt) {
+      return c.json({ error: 'Prompt is required' }, 400);
+    }
+
+    const apiKey = c.env.SECONDARY_LLM_API_KEY; // Assuming a different API key
+    if (!apiKey) {
+      console.error('SECONDARY_LLM_API_KEY not configured.');
+      return c.json({ error: 'Secondary LLM service not configured' }, 500);
+    }
+
+    // const llmResponse = await callSecondaryLlmApi(prompt, apiKey);
+    // return c.json(llmResponse);
+    return c.json({ response: "Secondary LLM endpoint is currently disabled (placeholder)." });
+
+  } catch (error) {
+    console.error('Error in /api/llm/secondary endpoint:', error.message);
+    return c.json({ error: 'Failed to get response from secondary LLM', details: error.message }, 500);
+  }
+});
+*/
+// --- End LLM Integration ---
+
+
 // Error handling
 app.onError((err, c) => {
   console.error(`${err}`);

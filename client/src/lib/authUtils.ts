@@ -4,40 +4,37 @@ const JWT_SESSION_STORAGE_KEY = 'supabase_jwt';
 
 /**
  * Retrieves the Supabase JWT.
- * Tries to get it from sessionStorage first, then from Supabase auth session.
+ * Always fetches the current session from Supabase to ensure token is fresh and handles refresh.
  * Stores the fetched token in sessionStorage.
  * @returns {Promise<string | null>} The JWT string or null if not available.
  */
 export async function getSupabaseJWT(): Promise<string | null> {
   try {
-    // 1. Check sessionStorage for a cached token
-    const cachedToken = sessionStorage.getItem(JWT_SESSION_STORAGE_KEY);
-    if (cachedToken) {
-      // Here you could add a check for token expiry if you have a JWT decoding library
-      // For now, we assume Supabase's getSession() handles refresh if needed
-      console.log('authUtils: Using cached JWT from sessionStorage');
-      return cachedToken;
-    }
-
-    // 2. If not in cache, get current session from Supabase Auth
-    console.log('authUtils: No cached JWT, fetching session from Supabase...');
+    console.log('authUtils: Fetching session from Supabase to get/refresh JWT...');
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
     if (sessionError) {
       console.error('authUtils: Error getting Supabase session:', sessionError.message);
+      // Clear any potentially stale token from session storage on error
+      try {
+        sessionStorage.removeItem(JWT_SESSION_STORAGE_KEY);
+      } catch (e) {/* ignore */}
       return null;
     }
 
     if (!sessionData.session || !sessionData.session.access_token) {
       console.warn('authUtils: No active Supabase session or access_token found.');
-      // This is a normal case if the user is not logged in.
+      // Clear any potentially stale token if no session exists
+      try {
+        sessionStorage.removeItem(JWT_SESSION_STORAGE_KEY);
+      } catch (e) {/* ignore */}
       return null;
     }
 
     const jwt = sessionData.session.access_token;
-    console.log('authUtils: Fetched new JWT from Supabase.');
+    console.log('authUtils: Successfully obtained JWT from Supabase session.');
 
-    // 3. Save the new token to sessionStorage
+    // Save the fresh token to sessionStorage
     try {
       sessionStorage.setItem(JWT_SESSION_STORAGE_KEY, jwt);
     } catch (e: any) {
@@ -48,6 +45,10 @@ export async function getSupabaseJWT(): Promise<string | null> {
 
   } catch (e: any) {
     console.error('authUtils: Exception in getSupabaseJWT:', e.message);
+    // Clear any potentially stale token from session storage on generic exception
+    try {
+        sessionStorage.removeItem(JWT_SESSION_STORAGE_KEY);
+      } catch (se) {/* ignore */}
     return null;
   }
 }

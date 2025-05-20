@@ -30,22 +30,25 @@ export function ConfigPane({ selectedTest, onRunTest, isLoading }: ConfigPanePro
     if (selectedTest) {
       let defaultHeadersContent = { "Content-Type": "application/json" };
       if (selectedTest.id === 'protected-with-token') {
-        // For the auto-token test, we can indicate headers will be auto-fetched
-        // Or pre-fill it once fetched, but for now, let's just set a generic one.
-        // The actual token will be fetched on run.
         setHeaders(JSON.stringify(defaultHeadersContent, null, 2));
-        // Optionally, provide a message in the UI or disable the textarea.
       } else {
         setHeaders(JSON.stringify(defaultHeadersContent, null, 2));
       }
 
-      let defaultBodyContent = { message: "Hello from the test suite!" };
+      // Logic for body state update
       if (selectedTest.method === 'GET') {
-        setBody('');
+        setBody(''); // GET requests typically don't have a body input here
       } else {
-        setBody(JSON.stringify(defaultBodyContent, null, 2));
+        // Prioritize the defaultBody from the TestCase definition
+        if (selectedTest.defaultBody) {
+          setBody(selectedTest.defaultBody); // defaultBody is already a string
+        } else {
+          // Fallback if no specific defaultBody is provided for a non-GET request
+          setBody(JSON.stringify({ message: "Default body content" }, null, 2)); 
+        }
       }
     } else {
+      // Clear if no test is selected
       setHeaders('{\n  "Content-Type": "application/json"\n}');
       setBody('{\n  "message": "Hello from the test suite!"\n}');
     }
