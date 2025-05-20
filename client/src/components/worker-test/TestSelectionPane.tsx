@@ -8,6 +8,8 @@ export interface TestCase {
   endpoint: string;
   method: string;
   description: string;
+  expectedResponse: string;
+  defaultBody: string | null;
 }
 
 interface TestSelectionPaneProps {
@@ -16,7 +18,20 @@ interface TestSelectionPaneProps {
   onSelectTest: (test: TestCase) => void;
 }
 
-export function TestSelectionPane({ tests, selectedTest, onSelectTest }: TestSelectionPaneProps) {
+const testCases: TestCase[] = [
+  {
+    id: 'llm-gemini-chat',
+    name: 'LLM Call (Gemini Flash)',
+    endpoint: '/api/llm/gemini',
+    method: 'POST',
+    description: 'Sends a prompt to the Gemini LLM and expects a text response.',
+    expectedResponse: '200 OK with LLM response object',
+    defaultBody: JSON.stringify({ prompt: "What is the capital of France?" }, null, 2),
+  },
+  // Add more test cases here
+];
+
+export function TestSelectionPane({ tests = testCases, selectedTest, onSelectTest }: TestSelectionPaneProps) {
   return (
     <div className="h-full flex flex-col">
       <div className="p-4 border-b">

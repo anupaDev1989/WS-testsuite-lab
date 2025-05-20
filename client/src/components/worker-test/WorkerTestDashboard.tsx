@@ -11,6 +11,8 @@ const DEFAULT_TESTS: TestCase[] = [
     endpoint: '/health',
     method: 'GET',
     description: 'Check if the worker is running and responsive',
+    expectedResponse: '200 OK with { "status": "ok", ... }',
+    defaultBody: null,
   },
   {
     id: 'users',
@@ -18,6 +20,8 @@ const DEFAULT_TESTS: TestCase[] = [
     endpoint: '/api/users',
     method: 'GET',
     description: 'Retrieve list of users',
+    expectedResponse: '200 OK with user list',
+    defaultBody: null,
   },
   {
     id: 'test',
@@ -25,6 +29,35 @@ const DEFAULT_TESTS: TestCase[] = [
     endpoint: '/api/test',
     method: 'POST',
     description: 'General purpose test endpoint',
+    expectedResponse: '200 OK with test data',
+    defaultBody: JSON.stringify({ message: "Hello from dashboard" }, null, 2),
+  },
+  {
+    id: 'protected-no-token',
+    name: 'Protected Route (No Token)',
+    endpoint: '/api/protected-data',
+    method: 'GET',
+    description: 'Test protected route without an auth token (expects 401)',
+    expectedResponse: '401 Unauthorized',
+    defaultBody: null,
+  },
+  {
+    id: 'protected-with-token',
+    name: 'Protected Route (With Token)',
+    endpoint: '/api/protected-data',
+    method: 'GET',
+    description: 'Test protected route with an auth token (expects 200). Authorization header is auto-fetched if logged in.',
+    expectedResponse: '200 OK with protected data',
+    defaultBody: null,
+  },
+  {
+    id: 'llm-gemini-chat',
+    name: 'LLM Call (Gemini Flash)',
+    endpoint: '/api/llm/gemini',
+    method: 'POST',
+    description: 'Sends a prompt to the Gemini LLM and expects a text response.',
+    expectedResponse: '200 OK with LLM response object',
+    defaultBody: JSON.stringify({ prompt: "What is the capital of France?" }, null, 2),
   },
 ];
 
@@ -55,16 +88,16 @@ export function WorkerTestDashboard() {
       let response;
       switch (config.method) {
         case 'GET':
-          response = await workerService.get(config.endpoint);
+          response = await workerService.get(config.endpoint, config.body, config.headers);
           break;
         case 'POST':
-          response = await workerService.post(config.endpoint, config.body);
+          response = await workerService.post(config.endpoint, config.body, config.headers);
           break;
         case 'PUT':
-          response = await workerService.put(config.endpoint, config.body);
+          response = await workerService.put(config.endpoint, config.body, config.headers);
           break;
         case 'DELETE':
-          response = await workerService.delete(config.endpoint);
+          response = await workerService.delete(config.endpoint, undefined, config.headers);
           break;
         default:
           throw new Error(`Unsupported method: ${config.method}`);
