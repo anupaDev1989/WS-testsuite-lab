@@ -57,3 +57,4 @@ Cloudflare URL: https://testsuite-worker.des9891sl.workers.dev/
 - use sequential thinking and puppetier mcps
 - cloudflare worker script is located at /Users/anupadesilva/Documents/G_CLOUD/AppDev Folder/testsuidelab/Test-Suite-Lab/BACKEND/testsuite-worker/src/index.js
 - after any modification to the worker script, run wrangler deploy terminal command in /Users/anupadesilva/Documents/G_CLOUD/AppDev Folder/testsuidelab/Test-Suite-Lab/BACKEND/testsuite-worker/
+- record the successful deployment in the changelog.md

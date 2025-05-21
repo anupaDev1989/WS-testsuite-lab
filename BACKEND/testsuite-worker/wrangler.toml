@@ -13,3 +13,16 @@ enabled = true
 [[kv_namespaces]]
 binding = "TESTSUITE_KV"
 id = "06cb20bef9b747be92ec2c88335a7479"
+
+# --- Rate Limiter Bindings ---
+[[unsafe.bindings]]
+  name = "FREE_USER_RATE_LIMITER"
+  type = "ratelimit"
+  namespace_id = "1001" # Ensure unique namespace_id
+  simple = { limit = 10, period = 60 } # Matches 10 in worker code
+
+[[unsafe.bindings]]
+  name = "PAID_USER_RATE_LIMITER"
+  type = "ratelimit"
+  namespace_id = "1002" # Ensure unique namespace_id
+  simple = { limit = 100, period = 60 } # Matches 100 in worker code

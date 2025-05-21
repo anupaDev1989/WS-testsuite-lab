@@ -2,12 +2,23 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { createClient } from '@supabase/supabase-js'
 
+// --- Env interface for type safety (for Typescript users, otherwise just a comment)
+/**
+ * @typedef {Object} Env
+ * @property {import('@cloudflare/workers-types').RateLimiter} FREE_USER_RATE_LIMITER
+ * @property {import('@cloudflare/workers-types').RateLimiter} PAID_USER_RATE_LIMITER
+ * @property {string} SUPABASE_URL
+ * @property {string} SUPABASE_ANON_KEY
+ * @property {string} GEMINI_API_KEY
+ */
+
 const app = new Hono()
 
+// CORS Middleware - applied to all routes
 app.use('*', cors({
   origin: '*',
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization'],
+  allowHeaders: ['Content-Type', 'Authorization', 'x-rate-limit-tier'],
 }))
 
 // Authentication Middleware
@@ -51,6 +62,48 @@ const authMiddleware = async (c, next) => {
   }
 };
 
+// New Rate Limiting Middleware for the /api/test route
+const rateLimitMiddlewareForTestRoute = async (c, next) => {
+  const tier = c.req.header('x-rate-limit-tier') === 'paid' ? 'paid' : 'free';
+  
+  const clientIp = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || 'unknown_ip';
+  const rateLimitKey = `${tier}:${clientIp}`;
+
+  const limiterBinding = tier === 'paid' ? c.env.PAID_USER_RATE_LIMITER : c.env.FREE_USER_RATE_LIMITER;
+  
+  // These should match wrangler.toml simple.limit for the respective bindings
+  const configuredLimits = {
+    free: 10, // Example: 10 requests per minute for free tier
+    paid: 100  // Example: 100 requests per minute for paid tier
+  };
+  const currentLimit = configuredLimits[tier];
+
+  if (!limiterBinding) {
+    console.error(`Rate limiter binding for tier '${tier}' not found in env. Check wrangler.toml and bindings.`);
+    return c.json({ error: `Rate limiter for tier '${tier}' not configured.` }, 500);
+  }
+
+  const { success, retryAfter } = await limiterBinding.limit({ key: rateLimitKey });
+
+  c.set('rateLimitResponseData', {
+    tierUsed: tier,
+    limit: currentLimit,
+    success: success,
+    ...(success ? {} : { retryAfter: retryAfter })
+  });
+
+  if (!success) {
+    return c.json({
+      error: 'Too many requests',
+      tier: tier,
+      limit: currentLimit,
+      retryAfter: retryAfter, 
+    }, 429);
+  }
+
+  await next();
+};
+
 // Health check endpoint
 app.get('/health', (c) => {
   return c.json({
@@ -82,17 +135,26 @@ app.get('/api/protected-data', authMiddleware, (c) => {
   });
 });
 
-// Mock test endpoint
-app.post('/api/test', async (c) => {
-  const body = await c.req.json()
-  
+// Mock test endpoint with tiered rate limiting
+app.post('/api/test', rateLimitMiddlewareForTestRoute, async (c) => {
+  const dataFromMiddleware = c.get('rateLimitResponseData') || {};
+  let requestBody;
+  try {
+    requestBody = await c.req.json();
+  } catch (e) {
+    requestBody = {}; // Default to empty object if no body or not JSON
+  }
+
+  // For successful requests, this data helps frontend understand current context
   return c.json({
-    status: 'success..!!',
-    data: body,
-    processingTime: Math.random() * 100,
-    timestamp: new Date().toISOString()
-  })
-})
+    message: 'Request to /api/test successful',
+    received_body: requestBody,
+    tier: dataFromMiddleware.tierUsed,
+    limit_for_tier: dataFromMiddleware.limit,
+    // Note: 'remaining' is not available from native CF binding
+    // 'retryAfter' is only applicable on 429, handled by middleware early return
+  });
+});
 
 // --- LLM Integration --- 
 

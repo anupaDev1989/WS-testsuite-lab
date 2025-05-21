@@ -59,6 +59,16 @@ const DEFAULT_TESTS: TestCase[] = [
     expectedResponse: '200 OK with LLM response object',
     defaultBody: JSON.stringify({ prompt: "What is the capital of France?" }, null, 2),
   },
+  {
+    id: 'ip-rate-limit',
+    name: 'Rate Limit Test (Free/Paid)',
+    endpoint: '/api/test',
+    method: 'POST',
+    description: 'Send multiple requests quickly to test the free or paid user rate limiting. Select a tier and observe remaining requests and reset time.',
+    expectedResponse: '200 OK (until you hit the limit), then 429 Too Many Requests',
+    defaultBody: JSON.stringify({ message: "Trigger rate limit" }, null, 2),
+    rateLimitTier: 'free', // default tier
+  },
 ];
 
 export function WorkerTestDashboard() {

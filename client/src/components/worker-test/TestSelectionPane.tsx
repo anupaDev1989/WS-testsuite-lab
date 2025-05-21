@@ -10,6 +10,7 @@ export interface TestCase {
   description: string;
   expectedResponse: string;
   defaultBody: string | null;
+  rateLimitTier?: 'free' | 'paid'; // For rate limit test cases only
 }
 
 interface TestSelectionPaneProps {

@@ -24,6 +24,8 @@ export interface TestConfig {
 export function ConfigPane({ selectedTest, onRunTest, isLoading }: ConfigPaneProps) {
   const [headers, setHeaders] = useState<string>('{\n  "Content-Type": "application/json"\n}');
   const [body, setBody] = useState<string>('{\n  "message": "Hello from the test suite!"\n}');
+  const [rateLimitTier, setRateLimitTier] = useState<'free' | 'paid'>('free');
+  const [rateLimitInfo, setRateLimitInfo] = useState<{remaining?: number, limit?: number, retryAfter?: number}|null>(null);
 
   // Reset headers and body when selectedTest changes
   useEffect(() => {
@@ -57,6 +59,12 @@ export function ConfigPane({ selectedTest, onRunTest, isLoading }: ConfigPanePro
   const handleRunTest = async () => {
     if (!selectedTest) return;
 
+    // If rate limit test, add tier header
+    let tierHeader: Record<string, string> = {};
+    if (selectedTest.id === 'ip-rate-limit') {
+      tierHeader = { 'x-rate-limit-tier': rateLimitTier };
+    }
+
     try {
       let finalHeaders: Record<string, string>;
       let finalBody: any;
@@ -76,13 +84,28 @@ export function ConfigPane({ selectedTest, onRunTest, isLoading }: ConfigPanePro
         finalBody = selectedTest.method !== 'GET' && body ? JSON.parse(body) : undefined; 
       } else {
         // For other tests, parse headers and body from textareas
-        finalHeaders = JSON.parse(headers || '{}');
+        finalHeaders = { ...JSON.parse(headers || '{}'), ...tierHeader };
         finalBody = selectedTest.method !== 'GET' && body ? JSON.parse(body) : undefined;
       }
       
       console.log('ConfigPane - Final Headers to be sent:', JSON.stringify(finalHeaders));
 
-      onRunTest({
+      // Wrap onRunTest to capture rate limit info from response
+      const customOnRunTest = async (config: TestConfig) => {
+        const response = await onRunTest(config);
+        // Try to extract rate limit info from response (assume response contains these fields if present)
+        if (response && typeof response === 'object' && (response.remaining !== undefined || response.retryAfter !== undefined)) {
+          setRateLimitInfo({
+            remaining: response.remaining,
+            limit: response.limit,
+            retryAfter: response.retryAfter,
+          });
+        } else {
+          setRateLimitInfo(null);
+        }
+        return response;
+      };
+      await customOnRunTest({
         endpoint: selectedTest.endpoint,
         method: selectedTest.method || 'GET',
         headers: finalHeaders,
@@ -101,6 +124,20 @@ export function ConfigPane({ selectedTest, onRunTest, isLoading }: ConfigPanePro
           <Settings className="h-5 w-5" />
           Test Configuration
         </h2>
+        {/* Rate limit tier selector */}
+        {selectedTest && selectedTest.id === 'ip-rate-limit' && (
+          <div className="mt-2">
+            <label className="font-medium mr-2">Rate Limit Tier:</label>
+            <select
+              value={rateLimitTier}
+              onChange={e => setRateLimitTier(e.target.value as 'free' | 'paid')}
+              className="border rounded px-2 py-1"
+            >
+              <option value="free">Free</option>
+              <option value="paid">Paid</option>
+            </select>
+          </div>
+        )}
       </div>
       <div className="flex-1 p-4 space-y-4">
         {selectedTest ? (
@@ -150,12 +187,20 @@ export function ConfigPane({ selectedTest, onRunTest, isLoading }: ConfigPanePro
                   )
                 )}
               </CardContent>
-              <CardFooter>
-                <Button
-                  className="w-full"
-                  onClick={handleRunTest}
-                  disabled={isLoading}
-                >
+              <CardFooter className="p-4 flex flex-col items-end gap-2">
+                {/* Show rate limit info if available */}
+                {selectedTest && selectedTest.id === 'ip-rate-limit' && rateLimitInfo && (
+                  <div className="w-full text-right text-sm text-muted-foreground">
+                    <span>Remaining: <b>{rateLimitInfo.remaining ?? 'N/A'}</b></span>
+                    {rateLimitInfo.limit !== undefined && (
+                      <span> / {rateLimitInfo.limit}</span>
+                    )}
+                    {rateLimitInfo.retryAfter !== undefined && (
+                      <span className="ml-2">Reset in: <b>{rateLimitInfo.retryAfter}s</b></span>
+                    )}
+                  </div>
+                )}
+                <Button onClick={handleRunTest} disabled={isLoading || !selectedTest}>
                   <Play className="h-4 w-4 mr-2" />
                   Run Test
                 </Button>
