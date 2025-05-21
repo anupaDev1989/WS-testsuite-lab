@@ -161,6 +161,11 @@ export function ConfigPane({ selectedTest, onRunTest, isLoading }: ConfigPanePro
         body: finalBody,
       });
     } catch (error: any) {
+      // Handle 401/403 for protected-with-token
+      if (selectedTest && selectedTest.id === 'protected-with-token' && error && error.response && (error.response.status === 401 || error.response.status === 403)) {
+        alert('Access denied: You are not authorized or your session has expired. Please log in again.');
+        return;
+      }
       // If error is an Axios 429, handle gracefully
       if (error && error.response && error.response.status === 429) {
         // Extract retryAfter from response if available

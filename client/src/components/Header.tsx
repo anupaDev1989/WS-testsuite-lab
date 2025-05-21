@@ -39,9 +39,16 @@ export default function Header({ backend, onRunTest, isExecuting, isLoggedIn, on
           {isLoggedIn && (
             <Button
               onClick={async () => {
-                await signOut();
-                localStorage.removeItem('isLoggedIn'); // Clear persisted login state
-                onLogout();
+                try {
+                  await signOut();
+                  localStorage.removeItem('isLoggedIn');
+                  onLogout();
+                  alert('You have been logged out.');
+                  // Optionally, you can redirect or refresh the page here
+                  // window.location.reload();
+                } catch (err: any) {
+                  alert('Logout failed: ' + (err?.message || 'Unknown error'));
+                }
               }}
               variant="ghost"
               className="text-white hover:bg-[#2D3343]"
