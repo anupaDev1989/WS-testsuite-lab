@@ -23,7 +23,7 @@ export function MessagePane({ messages }: MessagePaneProps) {
       </div>
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-4">
-          {messages.map((message, index) => (
+          {[...messages].reverse().map((message, index) => (
             <Card key={index}>
               <CardHeader className="py-3">
                 <CardTitle className="text-sm flex items-center gap-2">
@@ -53,3 +53,4 @@ export function MessagePane({ messages }: MessagePaneProps) {
     </div>
   );
 }
+

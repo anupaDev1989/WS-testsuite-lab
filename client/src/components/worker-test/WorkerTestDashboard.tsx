@@ -120,6 +120,7 @@ export function WorkerTestDashboard() {
         content: response,
       };
       setMessages((prev) => [...prev, responseMessage]);
+      return response; // Return response so ConfigPane can update counter
     } catch (error: any) {
       // Add error message
       const errorMessage = {
@@ -130,6 +131,7 @@ export function WorkerTestDashboard() {
         },
       };
       setMessages((prev) => [...prev, errorMessage]);
+      throw error; // propagate error so ConfigPane can handle if needed
     } finally {
       setIsLoading(false);
     }
