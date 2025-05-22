@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,10 +7,18 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Settings, Play } from 'lucide-react';
 import { TestCase } from './TestSelectionPane';
 import { getSupabaseJWT } from '@/lib/authUtils';
+import { AxiosResponse } from 'axios'; // Import AxiosResponse
+
+interface ServerRateLimitInfo {
+  limit: number;
+  remaining: number;
+  resetTimestamp: number; // Unix timestamp in milliseconds for when the window resets
+  retryAfterSeconds?: number; // Seconds from a 429 response
+}
 
 interface ConfigPaneProps {
   selectedTest: TestCase | null;
-  onRunTest: (config: TestConfig) => void;
+  onRunTest: (config: TestConfig) => Promise<AxiosResponse<any>>; // Expecting AxiosResponse
   isLoading?: boolean;
 }
 
@@ -18,168 +26,242 @@ export interface TestConfig {
   endpoint: string;
   method: string;
   headers: Record<string, string>;
-  body: string;
+  body: any; // Body can be any, will be stringified if object
 }
 
+const DEFAULT_HEADERS = '{\n  "Content-Type": "application/json"\n}';
+const DEFAULT_BODY = '{\n  "message": "Hello from the test suite!"\n}';
+
 export function ConfigPane({ selectedTest, onRunTest, isLoading }: ConfigPaneProps) {
-  const [headers, setHeaders] = useState<string>('{\n  "Content-Type": "application/json"\n}');
-  const [body, setBody] = useState<string>('{\n  "message": "Hello from the test suite!"\n}');
+  const [headers, setHeaders] = useState<string>(DEFAULT_HEADERS);
+  const [body, setBody] = useState<string>(DEFAULT_BODY);
   const [rateLimitTier, setRateLimitTier] = useState<'free' | 'paid'>('free');
-  const [rateLimitInfo, setRateLimitInfo] = useState<{remaining?: number, limit?: number, retryAfter?: number}|null>(null);
-  const [requestsMade, setRequestsMade] = useState(0);
-  const [limitForTier, setLimitForTier] = useState(10); // default for free
+  
+  // State for server-derived rate limit info, persisted in localStorage
+  const [serverRateLimitInfo, setServerRateLimitInfo] = useState<ServerRateLimitInfo | null>(null);
+  // Client-side understanding of whether it's blocked, derived from serverRateLimitInfo
+  const [isClientBlocked, setIsClientBlocked] = useState(false);
+  // UI countdown timer
   const [retryCountdown, setRetryCountdown] = useState<number | null>(null);
 
-  // Update limitForTier when tier changes
+  const getLocalStorageKey = useCallback(() => {
+    if (!selectedTest) return null;
+    return `rateLimitInfo_${selectedTest.id}_${selectedTest.method}_${rateLimitTier}`;
+  }, [selectedTest, rateLimitTier]);
+
+  // Load from localStorage on mount and when test/tier changes
   useEffect(() => {
-    if (selectedTest && selectedTest.id === 'ip-rate-limit') {
-      setLimitForTier(rateLimitTier === 'free' ? 4 : 10);
+    const key = getLocalStorageKey();
+    if (!key) {
+      setServerRateLimitInfo(null);
+      setIsClientBlocked(false);
+      setRetryCountdown(null);
+      return;
     }
-  }, [rateLimitTier, selectedTest]);
 
-  // Automatically clear rateLimitInfo and reset requestsMade after retryAfter
-  useEffect(() => {
-    if (rateLimitInfo && rateLimitInfo.retryAfter) {
-      const timer = setTimeout(() => {
-        setRateLimitInfo(null);
-        setRequestsMade(0);
-      }, rateLimitInfo.retryAfter * 1000);
-      return () => clearTimeout(timer);
+    const storedInfo = localStorage.getItem(key);
+    if (storedInfo) {
+      try {
+        const parsedInfo: ServerRateLimitInfo = JSON.parse(storedInfo);
+        if (parsedInfo.resetTimestamp && Date.now() < parsedInfo.resetTimestamp) {
+          setServerRateLimitInfo(parsedInfo);
+          setIsClientBlocked(true);
+          // Recalculate retryAfterSeconds if still blocked
+          const remainingBlockTimeMs = parsedInfo.resetTimestamp - Date.now();
+          if (remainingBlockTimeMs > 0) {
+            parsedInfo.retryAfterSeconds = Math.ceil(remainingBlockTimeMs / 1000);
+          } else {
+            // Should not happen if Date.now() < parsedInfo.resetTimestamp, but as a safeguard
+            localStorage.removeItem(key); // Clear stale entry
+            setServerRateLimitInfo(null);
+            setIsClientBlocked(false);
+            return;
+          }
+        } else {
+          // Stored info is outdated (reset time has passed)
+          localStorage.removeItem(key);
+          setServerRateLimitInfo(null);
+          setIsClientBlocked(false);
+        }
+      } catch (e) {
+        console.error("Error parsing rate limit info from localStorage", e);
+        localStorage.removeItem(key); // Clear corrupted entry
+        setServerRateLimitInfo(null);
+        setIsClientBlocked(false);
+      }
+    } else {
+      setServerRateLimitInfo(null);
+      setIsClientBlocked(false);
     }
-  }, [rateLimitInfo]);
+    setRetryCountdown(null); // Reset countdown display on test/tier change
+  }, [selectedTest, rateLimitTier, getLocalStorageKey]);
 
-  // Reset counters when test or tier changes
+  // Update localStorage when serverRateLimitInfo changes
   useEffect(() => {
-    setRequestsMade(0);
-    setRateLimitInfo(null);
-    setRetryCountdown(null);
-  }, [rateLimitTier, selectedTest]);
+    const key = getLocalStorageKey();
+    if (!key) return;
 
-  // Handle retryAfter countdown
+    if (serverRateLimitInfo) {
+      localStorage.setItem(key, JSON.stringify(serverRateLimitInfo));
+    } else {
+      // If null, it means the block is cleared or no info yet
+      // We only remove explicitly if reset time passed (done in the loading useEffect)
+      // Or if it's a successful request that clears a previous block
+    }
+  }, [serverRateLimitInfo, getLocalStorageKey]);
+  
+  // Manage isClientBlocked and retryCountdown based on serverRateLimitInfo
   useEffect(() => {
-    if (rateLimitInfo && rateLimitInfo.retryAfter) {
-      setRetryCountdown(rateLimitInfo.retryAfter);
+    if (serverRateLimitInfo && serverRateLimitInfo.resetTimestamp > Date.now()) {
+      setIsClientBlocked(true);
+      const remainingMs = serverRateLimitInfo.resetTimestamp - Date.now();
+      const seconds = Math.ceil(remainingMs / 1000);
+      setRetryCountdown(seconds);
+
       const interval = setInterval(() => {
-        setRetryCountdown((prev) => {
-          if (prev === null) return null;
-          if (prev <= 1) {
+        setRetryCountdown(prev => {
+          if (prev === null || prev <= 1) {
             clearInterval(interval);
+            setIsClientBlocked(false); // Countdown finished, unblock client
+            // Also clear serverRateLimitInfo from state and localStorage as it's now passed
+            const key = getLocalStorageKey();
+            if(key) localStorage.removeItem(key);
+            setServerRateLimitInfo(null); 
             return null;
           }
           return prev - 1;
         });
       }, 1000);
       return () => clearInterval(interval);
+    } else {
+      setIsClientBlocked(false);
+      setRetryCountdown(null);
+      // If serverRateLimitInfo exists but resetTimestamp is in the past, clear it.
+      if (serverRateLimitInfo && serverRateLimitInfo.resetTimestamp <= Date.now()) {
+        const key = getLocalStorageKey();
+        if(key) localStorage.removeItem(key);
+        setServerRateLimitInfo(null);
+      }
     }
-  }, [rateLimitInfo]);
+  }, [serverRateLimitInfo, getLocalStorageKey]);
 
   // Reset headers and body when selectedTest changes
   useEffect(() => {
     if (selectedTest) {
       let defaultHeadersContent = { "Content-Type": "application/json" };
-      if (selectedTest.id === 'protected-with-token') {
-        setHeaders(JSON.stringify(defaultHeadersContent, null, 2));
-      } else {
-        setHeaders(JSON.stringify(defaultHeadersContent, null, 2));
-      }
+      // Special handling for auth token can remain if needed, or simplify
+      setHeaders(JSON.stringify(defaultHeadersContent, null, 2));
 
-      // Logic for body state update
-      if (selectedTest.method === 'GET') {
-        setBody(''); // GET requests typically don't have a body input here
+      if (selectedTest.method === 'GET' && selectedTest.id !== 'protected-with-token') {
+        setBody(''); 
       } else {
-        // Prioritize the defaultBody from the TestCase definition
-        if (selectedTest.defaultBody) {
-          setBody(selectedTest.defaultBody); // defaultBody is already a string
-        } else {
-          // Fallback if no specific defaultBody is provided for a non-GET request
-          setBody(JSON.stringify({ message: "Default body content" }, null, 2)); 
-        }
+        setBody(selectedTest.defaultBody || DEFAULT_BODY);
       }
     } else {
-      // Clear if no test is selected
-      setHeaders('{\n  "Content-Type": "application/json"\n}');
-      setBody('{\n  "message": "Hello from the test suite!"\n}');
+      setHeaders(DEFAULT_HEADERS);
+      setBody(DEFAULT_BODY);
     }
   }, [selectedTest]);
 
   const handleRunTest = async () => {
-    if (!selectedTest) return;
+    if (!selectedTest || isClientBlocked) return;
 
-    // If rate limit test, add tier header
+    let authHeader: Record<string, string> = {};
+    const token = await getSupabaseJWT();
+    if (token) {
+      authHeader = { Authorization: `Bearer ${token}` };
+    }
+
     let tierHeader: Record<string, string> = {};
     if (selectedTest.id === 'ip-rate-limit') {
       tierHeader = { 'x-rate-limit-tier': rateLimitTier };
     }
 
     try {
-      let finalHeaders: Record<string, string>;
-      let finalBody: any;
-
-      if (selectedTest.id === 'protected-with-token') {
-        const token = await getSupabaseJWT();
-        if (!token) {
-          alert('Failed to retrieve Supabase JWT. Make sure you are logged in.');
-          console.error('ConfigPane: JWT token could not be retrieved for protected-with-token test.');
-          return; // Abort test
-        }
-        finalHeaders = {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        };
-        // For GET with auto-token, body is typically not from the textarea for this specific test logic
-        finalBody = selectedTest.method !== 'GET' && body ? JSON.parse(body) : undefined; 
-      } else {
-        // For other tests, parse headers and body from textareas
-        finalHeaders = { ...JSON.parse(headers || '{}'), ...tierHeader };
-        finalBody = selectedTest.method !== 'GET' && body ? JSON.parse(body) : undefined;
+      let parsedHeaders = {};
+      try {
+        parsedHeaders = JSON.parse(headers || '{}');
+      } catch (e) {
+        alert('Invalid JSON in Headers input.');
+        return;
       }
       
-      console.log('ConfigPane - Final Headers to be sent:', JSON.stringify(finalHeaders));
-
-      // Wrap onRunTest to capture rate limit info from response
-      const customOnRunTest = async (config: TestConfig) => {
-        const response = await onRunTest(config);
-        // Try to extract rate limit info from response (assume response contains these fields if present)
-        if (response && typeof response === 'object') {
-          if (response.retryAfter !== undefined) {
-            // 429 Too Many Requests
-            setRateLimitInfo({ retryAfter: response.retryAfter, limit: limitForTier });
-          } else {
-            // Success
-            setRateLimitInfo(null);
-            setRequestsMade((prev) => prev + 1);
-          }
-        } else {
-          setRateLimitInfo(null);
+      let parsedBody: any;
+      if (selectedTest.method !== 'GET' && body) {
+        try {
+          parsedBody = JSON.parse(body);
+        } catch (e) {
+          alert('Invalid JSON in Request Body input.');
+          return;
         }
-        return response;
+      } else if (selectedTest.method === 'GET') {
+        parsedBody = undefined; // Ensure no body for GET unless specifically handled
+      }
+
+      const finalHeaders: Record<string, string> = {
+        ...parsedHeaders,
+        ...tierHeader,
+        ...authHeader
       };
-      await customOnRunTest({
+      
+      console.log('ConfigPane - Final Headers to be sent:', JSON.stringify(finalHeaders));
+      console.log('ConfigPane - Final Body to be sent:', selectedTest.method !== 'GET' && body ? body : '(No Body)');
+
+      const response: AxiosResponse<any> = await onRunTest({
         endpoint: selectedTest.endpoint,
         method: selectedTest.method || 'GET',
         headers: finalHeaders,
-        body: finalBody,
+        body: parsedBody,
       });
-    } catch (error: any) {
-      // Handle 401/403 for protected-with-token
-      if (selectedTest && selectedTest.id === 'protected-with-token' && error && error.response && (error.response.status === 401 || error.response.status === 403)) {
-        alert('Access denied: You are not authorized or your session has expired. Please log in again.');
-        return;
-      }
-      // If error is an Axios 429, handle gracefully
-      if (error && error.response && error.response.status === 429) {
-        // Extract retryAfter from response if available
-        let retryAfter = 60;
-        if (error.response.data && typeof error.response.data.retryAfter === 'number') {
-          retryAfter = error.response.data.retryAfter;
+
+      // Process response headers for rate limit information
+      const limit = response.headers['x-ratelimit-limit'];
+      const remaining = response.headers['x-ratelimit-remaining'];
+      const reset = response.headers['x-ratelimit-reset']; // Unix time in seconds
+
+      let newRateLimitInfo: ServerRateLimitInfo | null = null;
+
+      if (response.status === 429) {
+        const retryAfterHeader = response.headers['retry-after']; // Seconds
+        const responseData = response.data;
+        const retryAfterFromData = responseData?.retryAfter; // Seconds, from our worker's JSON body
+        
+        const actualRetryAfterSeconds = parseInt(retryAfterHeader || '0', 10) || retryAfterFromData || 60; 
+        const now = Date.now();
+        newRateLimitInfo = {
+          limit: parseInt(limit || serverRateLimitInfo?.limit?.toString() || '0', 10),
+          remaining: 0, // On 429, remaining is 0
+          resetTimestamp: now + actualRetryAfterSeconds * 1000,
+          retryAfterSeconds: actualRetryAfterSeconds,
+        };
+        console.warn('Rate limit hit (429):', responseData, 'Effective Retry-After:', actualRetryAfterSeconds);
+      } else if (limit !== undefined && remaining !== undefined && reset !== undefined) {
+        newRateLimitInfo = {
+          limit: parseInt(limit, 10),
+          remaining: parseInt(remaining, 10),
+          resetTimestamp: parseInt(reset, 10) * 1000, // Convert Unix seconds to JS milliseconds
+        };
+        // If it was a successful request that previously was blocked, clear local storage explicitly
+        const key = getLocalStorageKey();
+        if(key && localStorage.getItem(key) && newRateLimitInfo.remaining > 0) {
+            localStorage.removeItem(key);
         }
-        setRateLimitInfo({ retryAfter, limit: limitForTier });
-        // Suppress console error log for expected 429
-        return;
+      } else if (response.status >= 200 && response.status < 300 && serverRateLimitInfo) {
+        // Successful request, but no rate limit headers returned (e.g. non-rate-limited endpoint)
+        // If there was a previous block for this key, and this success means it's cleared, remove it.
+        // This case is tricky; ideally all relevant endpoints return headers.
+        // For now, if it's a success and we had old info, we might clear it if reset time passed.
+        // The useEffect for serverRateLimitInfo already handles clearing if resetTimestamp passed.
       }
-      // Only log and alert for unexpected errors
-      console.error('Invalid JSON in headers or body (for manual input tests):', error);
-      alert('Error: Invalid JSON in Headers or Body input. Please check the syntax.');
+
+      setServerRateLimitInfo(newRateLimitInfo);
+
+    } catch (error: any) {
+      // This catch is for errors not handled by workerService returning error.response (e.g. network errors)
+      console.error('Error during onRunTest or response processing:', error);
+      alert(`An unexpected error occurred: ${error.message}`);
+      // Potentially clear local storage if error suggests state is invalid, or rely on timeout
+      // For now, no explicit clear here, rely on existing expiry logic or manual clear by user.
     }
   };
 
@@ -255,22 +337,22 @@ export function ConfigPane({ selectedTest, onRunTest, isLoading }: ConfigPanePro
               </CardContent>
               <CardFooter className="p-4 flex flex-col items-end gap-2">
                 {/* Enhanced Rate Limit Test Stats */}
-                {selectedTest && selectedTest.id === 'ip-rate-limit' && (
+                {selectedTest && selectedTest.id === 'ip-rate-limit' && serverRateLimitInfo && (
                   <div className="w-full text-right text-sm text-muted-foreground">
                     <div>
-                      Requests made: <b>{requestsMade}</b> / {limitForTier}
+                      Requests made: <b>{serverRateLimitInfo.limit - serverRateLimitInfo.remaining}</b> / {serverRateLimitInfo.limit}
                     </div>
                     <div>
-                      Requests remaining: <b>{Math.max(0, limitForTier - requestsMade)}</b>
+                      Requests remaining: <b>{serverRateLimitInfo.remaining}</b>
                     </div>
-                    {rateLimitInfo && rateLimitInfo.retryAfter !== undefined && (
+                    {isClientBlocked && retryCountdown !== null && (
                       <div className="text-red-600">
-                        Rate limit reached. Try again in <b>{retryCountdown ?? rateLimitInfo.retryAfter}s</b>.
+                        Rate limit active. Try again in <b>{retryCountdown}s</b>.
                       </div>
                     )}
                   </div>
                 )}
-                <Button onClick={handleRunTest} disabled={isLoading || !selectedTest || (rateLimitInfo && rateLimitInfo.retryAfter !== undefined)}>
+                <Button onClick={handleRunTest} disabled={!!(isLoading || !selectedTest || isClientBlocked)}>
                   <Play className="h-4 w-4 mr-2" />
                   Run Test
                 </Button>

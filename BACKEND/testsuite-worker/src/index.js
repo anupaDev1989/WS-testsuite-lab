@@ -14,6 +14,12 @@ import { createClient } from '@supabase/supabase-js'
 
 const app = new Hono()
 
+// Constants for rate limits
+const FREE_TIER_LIMIT = 4;
+const PAID_TIER_LIMIT = 10;
+const FREE_TIER_PERIOD = 60; 
+const PAID_TIER_PERIOD = 60; 
+
 // CORS Middleware - applied to all routes
 app.use('*', cors({
   origin: '*',
@@ -64,41 +70,146 @@ const authMiddleware = async (c, next) => {
 
 // New Rate Limiting Middleware for the /api/test route
 const rateLimitMiddlewareForTestRoute = async (c, next) => {
+  if (c.req.method === 'OPTIONS') {
+    // Do not rate limit OPTIONS requests. Pass through for CORS handling.
+    await next();
+    return;
+  }
+
   const tier = c.req.header('x-rate-limit-tier') === 'paid' ? 'paid' : 'free';
-  
   const clientIp = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || 'unknown_ip';
-  const rateLimitKey = `${tier}:${clientIp}`;
+  let rateLimitKey;
+  let userId = null;
+  let limiterBinding;
+  let currentLimit;
+  let currentPeriod;
 
-  const limiterBinding = tier === 'paid' ? c.env.PAID_USER_RATE_LIMITER : c.env.FREE_USER_RATE_LIMITER;
+  const authHeader = c.req.header('Authorization');
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    try {
+      const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
+      if (!c.env.SUPABASE_URL || !c.env.SUPABASE_ANON_KEY) {
+        console.warn('Supabase URL or Anon Key not configured in environment for rate limiting. Falling back to IP-based.');
+      } else {
+        const { data: { user }, error } = await supabase.auth.getUser(token);
+        if (error) {
+          console.warn('JWT validation error for rate limiting:', error.message);
+        } else if (user && user.id) {
+          userId = user.id;
+        } else {
+          console.warn('JWT seemed valid, but no user object or user.id returned for rate limiting.');
+        }
+      }
+    } catch (e) {
+      console.warn('Exception during JWT processing for rate limiting:', e.message);
+    }
+  }
+
+  if (userId) {
+    rateLimitKey = `${tier}:user:${userId}`;
+    limiterBinding = tier === 'paid' ? c.env.PAID_USER_RATE_LIMITER : c.env.FREE_USER_RATE_LIMITER;
+    currentLimit = tier === 'paid' ? PAID_TIER_LIMIT : FREE_TIER_LIMIT;
+    currentPeriod = tier === 'paid' ? PAID_TIER_PERIOD : FREE_TIER_PERIOD;
+  } else {
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      console.log('Attempted user-based rate limit (Authorization header present), but failed to get/validate userId. Falling back to IP-based.');
+    }
+    rateLimitKey = `${tier}:ip:${clientIp}`;
+    // Fallback to IP-based on the same tier binding if no user ID
+    limiterBinding = tier === 'paid' ? c.env.PAID_USER_RATE_LIMITER : c.env.FREE_USER_RATE_LIMITER;
+    currentLimit = tier === 'paid' ? PAID_TIER_LIMIT : FREE_TIER_LIMIT;
+    currentPeriod = tier === 'paid' ? PAID_TIER_PERIOD : FREE_TIER_PERIOD;
+  }
   
-  // These should match wrangler.toml simple.limit for the respective bindings
-  const configuredLimits = {
-    free: 10, // Example: 10 requests per minute for free tier
-    paid: 100  // Example: 100 requests per minute for paid tier
-  };
-  const currentLimit = configuredLimits[tier];
-
   if (!limiterBinding) {
     console.error(`Rate limiter binding for tier '${tier}' not found in env. Check wrangler.toml and bindings.`);
     return c.json({ error: `Rate limiter for tier '${tier}' not configured.` }, 500);
   }
 
-  const { success, retryAfter } = await limiterBinding.limit({ key: rateLimitKey });
+  // --- BEGIN ADDED DEBUG LOGS ---
+  console.log(`DEBUG: Request IP: ${clientIp}`);
+  console.log(`DEBUG: Auth Header Present: ${!!authHeader}`);
+  console.log(`DEBUG: User ID from Token: ${userId || 'N/A'}`);
+  console.log(`DEBUG: Tier Selected: ${tier}`);
+  console.log(`DEBUG: Rate Limit Key Used: ${rateLimitKey}`);
+  console.log(`DEBUG: Limiter Binding Name: ${limiterBinding === c.env.PAID_USER_RATE_LIMITER ? 'PAID_USER_RATE_LIMITER' : 'FREE_USER_RATE_LIMITER'}`);
+  console.log(`DEBUG: Applied Limit: ${currentLimit}, Applied Period: ${currentPeriod}s`);
+  // --- END ADDED DEBUG LOGS ---
+
+  // Get the current window start time (floored to the nearest minute for 60s period)
+  const nowMs = Date.now();
+  const windowStartMs = Math.floor(nowMs / (currentPeriod * 1000)) * (currentPeriod * 1000);
+  const windowEndMs = windowStartMs + (currentPeriod * 1000);
+  
+  // KV key includes the time window to handle resets correctly
+  const kvCountKey = `count:${rateLimitKey}:${windowStartMs}`;
+  
+  // First check if we're already rate limited
+  const { success, retryAfter: retryAfterFromLimit } = await limiterBinding.limit({ key: rateLimitKey });
+  
+  let currentCount;
+  try {
+    // Attempt to increment the counter in KV
+    const storedCount = await c.env.TESTSUITE_KV.get(kvCountKey, "json");
+    if (!storedCount) {
+      // First request in this window
+      currentCount = 1;
+      await c.env.TESTSUITE_KV.put(kvCountKey, JSON.stringify({ count: currentCount }), {
+        expirationTtl: currentPeriod + 10 // Add buffer for cleanup
+      });
+    } else {
+      // Increment existing counter
+      currentCount = storedCount.count + 1;
+      await c.env.TESTSUITE_KV.put(kvCountKey, JSON.stringify({ count: currentCount }), {
+        expirationTtl: currentPeriod + 10 // Add buffer for cleanup
+      });
+    }
+  } catch (e) {
+    console.warn(`Error tracking rate limit count in KV: ${e.message}`);
+    currentCount = success ? 1 : currentLimit; // Fallback value
+  }
+
+  // Calculate remaining requests
+  const responseRemaining = Math.max(0, currentLimit - currentCount);
+  
+  // Calculate reset time
+  const responseReset = windowEndMs;
+
+  // Calculate time until window reset
+  const timeUntilReset = Math.ceil((windowEndMs - nowMs) / 1000);
 
   c.set('rateLimitResponseData', {
-    tierUsed: tier,
     limit: currentLimit,
+    period: currentPeriod,
+    key: rateLimitKey,
     success: success,
-    ...(success ? {} : { retryAfter: retryAfter })
+    retryAfter: success ? 0 : timeUntilReset,
+    remaining: responseRemaining,
+    reset: responseReset,
+    currentCount: currentCount
   });
 
+  // Set standard rate limit headers
+  c.header('X-RateLimit-Limit', currentLimit.toString());
+  c.header('X-RateLimit-Remaining', responseRemaining.toString());
+  c.header('X-RateLimit-Reset', Math.floor(responseReset / 1000).toString());
+
   if (!success) {
-    return c.json({
-      error: 'Too many requests',
-      tier: tier,
-      limit: currentLimit,
-      retryAfter: retryAfter, 
-    }, 429);
+    console.log(`Rate limit exceeded for key: ${rateLimitKey}. Retry after: ${timeUntilReset}s. Count: ${currentCount}/${currentLimit}`);
+    c.header('Retry-After', timeUntilReset.toString());
+    return c.json(
+      {
+        message: 'Too Many Requests',
+        limit: currentLimit,
+        period: currentPeriod,
+        retryAfter: timeUntilReset,
+        remaining: responseRemaining,
+        key_used: rateLimitKey,
+        current_count: currentCount
+      },
+      429
+    );
   }
 
   await next();

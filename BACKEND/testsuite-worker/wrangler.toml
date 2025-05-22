@@ -18,11 +18,11 @@ id = "06cb20bef9b747be92ec2c88335a7479"
 [[unsafe.bindings]]
   name = "FREE_USER_RATE_LIMITER"
   type = "ratelimit"
-  namespace_id = "1001" # Ensure unique namespace_id
+  namespace_id = "1001" # Reverted to numeric string
   simple = { limit = 4, period = 60 } # Matches 10 in worker code
 
 [[unsafe.bindings]]
   name = "PAID_USER_RATE_LIMITER"
   type = "ratelimit"
-  namespace_id = "1002" # Ensure unique namespace_id
+  namespace_id = "1002" # Reverted to numeric string
   simple = { limit = 10, period = 60 } # Matches 100 in worker code

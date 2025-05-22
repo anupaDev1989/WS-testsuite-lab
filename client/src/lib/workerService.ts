@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 
 // Worker base URL
 const WORKER_BASE_URL = 'https://testsuite-worker.des9891sl.workers.dev';
@@ -16,12 +16,18 @@ export class WorkerService {
   /**
    * Check if the worker is running
    */
-  async checkHealth() {
+  async checkHealth(): Promise<AxiosResponse<any>> {
     try {
       const response = await axios.get(`${this.baseUrl}/health`);
-      return response.data;
-    } catch (error) {
-      console.error('Error checking worker health:', error);
+      return response;
+    } catch (error: any) {
+      console.error('Error checking worker health:', error.message);
+      // If the error is an Axios error and has a response, return that response object
+      // This allows the caller to handle HTTP errors like 429, 401, etc.
+      if (axios.isAxiosError(error) && error.response) {
+        return error.response;
+      }
+      // For other types of errors (network error, etc.), re-throw to be handled by the caller
       throw error;
     }
   }
@@ -38,7 +44,7 @@ export class WorkerService {
     method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
     data?: any,
     headers?: Record<string, string>
-  ) {
+  ): Promise<AxiosResponse<any>> {
     try {
       const url = `${this.baseUrl}${endpoint}`;
       
@@ -54,9 +60,15 @@ export class WorkerService {
       };
       
       const response = await axios(config);
-      return response.data;
-    } catch (error) {
-      console.error(`Error sending ${method} request to ${endpoint}:`, error);
+      return response;
+    } catch (error: any) {
+      console.error(`Error sending ${method} request to ${endpoint}:`, error.message);
+      // If the error is an Axios error and has a response, return that response object
+      // This allows the caller to handle HTTP errors like 429, 401, etc.
+      if (axios.isAxiosError(error) && error.response) {
+        return error.response;
+      }
+      // For other types of errors (network error, etc.), re-throw to be handled by the caller
       throw error;
     }
   }
@@ -64,28 +76,28 @@ export class WorkerService {
   /**
    * Convenience method for GET requests
    */
-  async get(endpoint: string, params?: any, headers?: Record<string, string>) {
+  async get(endpoint: string, params?: any, headers?: Record<string, string>): Promise<AxiosResponse<any>> {
     return this.sendRequest(endpoint, 'GET', params, headers);
   }
   
   /**
    * Convenience method for POST requests
    */
-  async post(endpoint: string, data?: any, headers?: Record<string, string>) {
+  async post(endpoint: string, data?: any, headers?: Record<string, string>): Promise<AxiosResponse<any>> {
     return this.sendRequest(endpoint, 'POST', data, headers);
   }
   
   /**
    * Convenience method for PUT requests
    */
-  async put(endpoint: string, data?: any, headers?: Record<string, string>) {
+  async put(endpoint: string, data?: any, headers?: Record<string, string>): Promise<AxiosResponse<any>> {
     return this.sendRequest(endpoint, 'PUT', data, headers);
   }
   
   /**
    * Convenience method for DELETE requests
    */
-  async delete(endpoint: string, data?: any, headers?: Record<string, string>) {
+  async delete(endpoint: string, data?: any, headers?: Record<string, string>): Promise<AxiosResponse<any>> {
     return this.sendRequest(endpoint, 'DELETE', data, headers);
   }
 }

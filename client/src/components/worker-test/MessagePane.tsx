@@ -42,7 +42,7 @@ export function MessagePane({ messages }: MessagePaneProps) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="py-3">
-                <pre className="text-sm bg-muted p-2 rounded-md overflow-x-auto">
+                <pre className="text-sm bg-muted p-2 rounded-md whitespace-pre-wrap break-all">
                   {JSON.stringify(message.content, null, 2)}
                 </pre>
               </CardContent>
@@ -53,4 +53,3 @@ export function MessagePane({ messages }: MessagePaneProps) {
     </div>
   );
 }
-
