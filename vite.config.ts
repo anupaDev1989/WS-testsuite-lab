@@ -28,4 +28,16 @@ export default defineConfig({
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
   },
+  // Add server proxy configuration
+  server: {
+    proxy: {
+      // string shorthand: /api -> http://localhost:5000/api
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        // secure: false, // If your backend is http and not https
+        // rewrite: (path) => path.replace(/^\/api/, ''), // if you want to remove /api prefix when forwarding
+      },
+    },
+  },
 });

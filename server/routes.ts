@@ -200,29 +200,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Mock authentication endpoint
   app.post('/api/auth/login', (req, res) => {
-    const { username, password } = req.body;
-    if (username === 'admin' && password === 'password') {
+    const { email, password } = req.body;
+    if (email && password) {
+      res.cookie('connect.sid', `s:${Math.random().toString(36).substring(7)}.`, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production', 
+        maxAge: 24 * 60 * 60 * 1000 
+      });
       res.json({
         success: true,
-        token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+        message: "Login successful",
         user: {
-          id: 1,
-          username: 'admin',
-          role: 'administrator'
-        },
-        worker: 'Cloudflare Worker',
-        cf_ray: `${Math.random().toString(36).substring(2, 15)}`,
-        worker_id: `worker-${Math.floor(Math.random() * 1000)}`
+          id: "mock-user-id-123",
+          email: email, 
+          name: "Mock User"
+        }
       });
     } else {
-      res.status(401).json({
-        success: false,
-        message: "Invalid credentials",
-        worker: 'Cloudflare Worker',
-        cf_ray: `${Math.random().toString(36).substring(2, 15)}`,
-        worker_id: `worker-${Math.floor(Math.random() * 1000)}`
-      });
+      res.status(400).json({ success: false, message: "Email and password are required" });
     }
+  });
+
+  // Mock endpoint to get user profile (simulates an authenticated route)
+  app.get('/api/auth/profile', (req, res) => {
+    if (req.headers.cookie && req.headers.cookie.includes('connect.sid')) {
+      res.json({
+        id: 'user-123-auth-mock', 
+        email: 'authenticated.user@example.com', 
+        emailVerified: true,
+        displayName: 'Authenticated User',
+        timezone: 'America/New_York',
+        locale: 'en-US',
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString(), 
+        lastLoginAt: new Date().toISOString(),
+        accountType: 'free',
+      });
+    } else {
+      res.status(401).json({ success: false, message: "Unauthorized: No session cookie found." });
+    }
+  });
+
+  app.post('/api/auth/logout', (req, res) => {
+    res.clearCookie('connect.sid');
+    res.json({ success: true, message: "Logged out successfully" });
   });
 
   const httpServer = createServer(app);

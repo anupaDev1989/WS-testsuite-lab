@@ -7,8 +7,9 @@ import NotFound from "@/pages/not-found";
 import DevTestingEnvironment from "@/pages/DevTestingEnvironment";
 import WorkerTestPage from "@/pages/WorkerTestPage";
 import UpdatePasswordPage from "@/pages/UpdatePasswordPage";
+import ProfilePage from "@/features/ProfilePage";
 import { ThemeProvider } from "next-themes";
-import { CloudCog, LayoutDashboard } from "lucide-react";
+import { CloudCog, LayoutDashboard, UserCircle } from "lucide-react"; // Added UserCircle icon
 
 function NavBar() {
   const [location] = useLocation();
@@ -37,6 +38,17 @@ function NavBar() {
               Cloudflare Worker Test
             </div>
           </Link>
+          {/* Added Profile Page Link */}
+          <Link href="/profile">
+            <div className={`flex items-center px-3 py-2 rounded-md text-sm font-medium ${
+              location === '/profile' 
+                ? 'bg-[#1C2333] text-white' 
+                : 'text-gray-300 hover:bg-[#1C2333] hover:text-white'
+            }`}>
+              <UserCircle className="w-4 h-4 mr-2" />
+              User Profile
+            </div>
+          </Link>
         </div>
       </div>
     </nav>
@@ -52,6 +64,7 @@ const Router = () => {
           <Route path="/" component={DevTestingEnvironment} />
           <Route path="/worker-test" component={WorkerTestPage} />
           <Route path="/update-password" component={UpdatePasswordPage} />
+          <Route path="/profile" component={ProfilePage} />
           <Route component={NotFound} />
         </Switch>
       </div>
