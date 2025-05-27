@@ -17,16 +17,6 @@ function NavBar() {
     <nav className="bg-[#131A29] border-b border-[#1C2333] p-2">
       <div className="container mx-auto flex items-center">
         <div className="flex space-x-4">
-          <Link href="/">
-            <div className={`flex items-center px-3 py-2 rounded-md text-sm font-medium ${
-              location === '/' 
-                ? 'bg-[#1C2333] text-white' 
-                : 'text-gray-300 hover:bg-[#1C2333] hover:text-white'
-            }`}>
-              <LayoutDashboard className="w-4 h-4 mr-2" />
-              Testing Dashboard
-            </div>
-          </Link>
           <Link href="/worker-test">
             <div className={`flex items-center px-3 py-2 rounded-md text-sm font-medium ${
               location === '/worker-test' 
@@ -49,7 +39,7 @@ const Router = () => {
       <NavBar />
       <div className="flex-1 overflow-auto">
         <Switch>
-          <Route path="/" component={DevTestingEnvironment} />
+          <Route path="/" component={WorkerTestPage} />
           <Route path="/worker-test" component={WorkerTestPage} />
           <Route path="/update-password" component={UpdatePasswordPage} />
           <Route component={NotFound} />
