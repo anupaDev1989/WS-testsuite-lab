@@ -1,35 +1,159 @@
-# Test Suite Lab Project
+# Test Suite Lab
 
-This project contains a Cloudflare Worker backend and a client application for testing various functionalities.
+A comprehensive testing and development platform with a React-based frontend and Cloudflare Worker backend, featuring rate limiting, authentication, and API testing capabilities.
 
-## Backend (Cloudflare Worker)
+## Features
 
-Located in the `Test-Suite-Lab/BACKEND/testsuite-worker` directory.
+- 🔐 **Authentication** - Secure user authentication using Supabase Auth
+- 🚦 **Rate Limiting** - Tiered rate limiting for API endpoints
+- 🤖 **AI Integration** - Gemini AI integration for natural language processing
+- 🛠️ **API Testing** - Built-in tools for testing RESTful APIs
+- 📊 **Real-time Monitoring** - Live rate limit and usage statistics
+- 🔄 **State Management** - Persistent state across sessions
 
-### Rate Limiting
+## Tech Stack
 
-The `/api/test` endpoint implements robust rate limiting with the following behavior:
+### Frontend
+- React 18 with TypeScript
+- Vite for build tooling
+- Tailwind CSS + shadcn/ui for styling
+- React Query for data fetching
+- wouter for routing
 
-- **Request Counting**: Request counts are accurately tracked within fixed time windows using a Cloudflare KV namespace (`TESTSUITE_KV`). This ensures precise enforcement of rate limits.
-- **Authenticated Users**: If a valid JWT is provided in the `Authorization: Bearer <token>` header, rate limiting is applied per user ID for the specified tier (`free` or `paid`, indicated by the `x-rate-limit-tier` header). A logged-in user's requests are counted against their own limit.
-- **Anonymous Users**: If no valid JWT is provided, rate limiting falls back to being IP-based for the specified tier.
+### Backend
+- Cloudflare Workers
+- Hono.js web framework
+- Supabase for authentication and database
+- Gemini AI integration
 
-Rate limits (number of requests and time window) are defined in `wrangler.toml` for `FREE_USER_RATE_LIMITER` and `PAID_USER_RATE_LIMITER` bindings.
+## Getting Started
 
-**Response Headers**:
-The worker provides standard rate limiting headers on responses from rate-limited endpoints:
-- `X-RateLimit-Limit`: The total number of requests allowed in the current window for the user/IP.
-- `X-RateLimit-Remaining`: The number of requests remaining in the current window.
-- `X-RateLimit-Reset`: A Unix timestamp (in seconds) indicating when the current rate limit window will reset.
-- `Retry-After`: (On 429 responses) The number of seconds until the client should retry.
+### Prerequisites
 
-## Client
+- Node.js 18+
+- npm or yarn
+- Cloudflare Wrangler CLI
+- Supabase account
+- Google Cloud account (for Gemini API)
 
-Located in the `Test-Suite-Lab/client` directory.
+### Installation
 
-The client application's Test Dashboard (`ConfigPane.tsx`) intelligently handles these rate limit headers:
-- It persists the rate limit status (blocked, remaining, reset time) in `localStorage` to maintain state across page refreshes.
-- It accurately displays the remaining requests and the reset time to the user.
-- It prevents sending further requests if a rate limit is active, until the reset time has passed.
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/your-username/test-suite-lab.git
+   cd test-suite-lab
+   ```
 
-[Further details about the client application can be added here.]
+2. **Install dependencies**
+   ```bash
+   # Install root dependencies
+   npm install
+   
+   # Install client dependencies
+   cd client
+   npm install
+   ```
+
+3. **Set up environment variables**
+   Create a `.env` file in the root directory:
+   ```env
+   # Supabase
+   VITE_SUPABASE_URL=your-supabase-url
+   VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+   
+   # Gemini
+   VITE_GEMINI_API_KEY=your-gemini-api-key
+   ```
+
+4. **Start development servers**
+   ```bash
+   # Start backend (in root directory)
+   npm run dev
+   
+   # In a new terminal, start frontend
+   cd client
+   npm run dev
+   ```
+
+## Project Structure
+
+```
+test-suite-lab/
+├── client/                 # Frontend React application
+│   ├── public/             # Static files
+│   └── src/                # Source files
+│       ├── components/     # Reusable UI components
+│       ├── pages/          # Page components
+│       ├── lib/            # Utility functions
+│       └── App.tsx         # Main application component
+├── BACKEND/
+│   └── testsuite-worker/  # Cloudflare Worker backend
+│       ├── src/
+│       │   └── index.js  # Worker entry point
+│       └── wrangler.toml   # Worker configuration
+├── CHANGELOG.md           # Project changelog
+└── README.md              # This file
+```
+
+## API Documentation
+
+### Authentication
+
+All protected endpoints require a valid JWT token in the `Authorization` header:
+```
+Authorization: Bearer <your-jwt-token>
+```
+
+### Available Endpoints
+
+#### Health Check
+- `GET /health` - Check if the API is running
+
+#### Authentication
+- `POST /api/auth/login` - User login
+- `POST /api/auth/register` - User registration
+- `GET /api/auth/me` - Get current user info
+
+#### LLM
+- `POST /api/llm/gemini` - Generate text using Gemini AI
+  ```json
+  {
+    "prompt": "Your prompt here"
+  }
+  ```
+
+#### Testing
+- `GET /api/test` - Test endpoint with rate limiting
+- `GET /api/protected-data` - Example protected endpoint
+
+## Rate Limiting
+
+The API implements tiered rate limiting:
+
+- **Free Tier**: 4 requests per minute
+- **Paid Tier**: 20 requests per minute
+
+Rate limit headers are included in all responses:
+- `X-RateLimit-Limit`: Maximum requests allowed
+- `X-RateLimit-Remaining`: Remaining requests
+- `X-RateLimit-Reset`: When the limit resets (UNIX timestamp)
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- [Cloudflare Workers](https://workers.cloudflare.com/)
+- [Supabase](https://supabase.com/)
+- [Google Gemini](https://ai.google.dev/)
+- [Hono.js](https://hono.dev/)
+- [React](https://reactjs.org/)
