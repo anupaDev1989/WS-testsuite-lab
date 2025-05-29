@@ -29,42 +29,102 @@ app.use('*', cors({
 
 // Authentication Middleware
 const authMiddleware = async (c, next) => {
-  const authHeader = c.req.header('Authorization');
-  console.log('Worker authMiddleware - Received Authorization Header:', authHeader);
-
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    console.log('Worker authMiddleware - Failed: Missing or malformed Bearer token.');
-    return c.json({ error: 'Unauthorized', reason: 'Missing or malformed token' }, 401);
-  }
-  const token = authHeader.split(' ')[1];
-  console.log('Worker authMiddleware - Extracted Token:', token ? 'Token Present (first 10 chars: ' + token.substring(0, 10) + '...)' : 'Token NOT Present');
-
-  if (!c.env.SUPABASE_URL || !c.env.SUPABASE_ANON_KEY) {
-    console.error('Worker authMiddleware - Failed: Supabase URL or Anon Key not configured.');
-    console.error('Supabase URL or Anon Key not configured in worker environment.');
-    return c.json({ error: 'Configuration error', reason: 'Server not configured for authentication' }, 500);
-  }
-
-  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
-
   try {
+    const authHeader = c.req.header('Authorization');
+    console.log('Worker authMiddleware - Received Authorization Header:', authHeader ? 'Present' : 'Missing');
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('Worker authMiddleware - Failed: Missing or malformed Bearer token.');
+      return c.json({ 
+        success: false,
+        error: 'Unauthorized', 
+        reason: 'Missing or malformed token',
+        details: 'Please include a valid Bearer token in the Authorization header'
+      }, 401);
+    }
+    
+    const token = authHeader.split(' ')[1];
+    console.log('Worker authMiddleware - Extracted Token:', token ? 'Token Present (first 10 chars: ' + token.substring(0, 10) + '...)' : 'Token NOT Present');
+
+    // Log environment variables for debugging
+    console.log('Worker environment variables:', {
+      hasSupabaseUrl: !!c.env.SUPABASE_URL,
+      supabaseUrlLength: c.env.SUPABASE_URL ? c.env.SUPABASE_URL.length : 0,
+      hasAnonKey: !!c.env.SUPABASE_ANON_KEY,
+      anonKeyLength: c.env.SUPABASE_ANON_KEY ? c.env.SUPABASE_ANON_KEY.length : 0,
+      envKeys: Object.keys(c.env)
+    });
+
+    // Validate environment variables
+    if (!c.env.SUPABASE_URL || !c.env.SUPABASE_ANON_KEY) {
+      const errorMsg = 'Supabase URL or Anon Key not configured in worker environment';
+      console.error('Worker authMiddleware - Failed:', errorMsg, {
+        SUPABASE_URL: c.env.SUPABASE_URL ? 'present' : 'missing',
+        SUPABASE_ANON_KEY: c.env.SUPABASE_ANON_KEY ? 'present' : 'missing',
+        allEnvVars: Object.keys(c.env)
+      });
+      return c.json({ 
+        success: false,
+        error: 'Configuration error', 
+        reason: errorMsg,
+        details: 'Please check your worker configuration',
+        env: process.env.NODE_ENV,
+        hasSupabaseUrl: !!c.env.SUPABASE_URL,
+        hasAnonKey: !!c.env.SUPABASE_ANON_KEY
+      }, 500);
+    }
+
+    console.log('Worker authMiddleware - Creating Supabase client with URL:', 
+      c.env.SUPABASE_URL ? 'URL is present' : 'URL is missing');
+    
+    const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
+
+    console.log('Worker authMiddleware - Verifying token with Supabase...');
     const { data, error } = await supabase.auth.getUser(token);
 
     console.log('Worker authMiddleware - Supabase getUser response:', { 
-      userData: data && data.user ? { id: data.user.id, aud: data.user.aud } : null,
-      error: error ? { message: error.message, status: error.status } : null 
+      hasUserData: !!(data?.user),
+      userId: data?.user?.id,
+      error: error ? { 
+        message: error.message, 
+        status: error.status,
+        name: error.name
+      } : 'No error'
     });
 
-    if (error || !data.user) {
-      console.error('Worker authMiddleware - Failed: Auth error or no user from Supabase. Error:', error ? error.message : 'No user data');
-      return c.json({ error: 'Unauthorized', reason: error?.message || 'Invalid token' }, 401);
+    if (error || !data?.user) {
+      const errorMsg = `Auth error: ${error?.message || 'No user data'}`;
+      console.error('Worker authMiddleware - Failed:', errorMsg);
+      return c.json({ 
+        success: false,
+        error: 'Unauthorized', 
+        reason: errorMsg,
+        details: 'The provided token is invalid or expired'
+      }, 401);
     }
 
-    c.set('user', data.user); // Make user available to the route handler
+    // Add user info to the context
+    c.set('user', data.user);
+    console.log('Worker authMiddleware - Successfully authenticated user:', data.user.id);
+    
     await next();
   } catch (e) {
-    console.error('Worker authMiddleware - Failed: Exception during token validation. Error:', e.message);
-    return c.json({ error: 'Unauthorized', reason: 'Token validation failed' }, 401);
+    console.error('Worker authMiddleware - Exception during authentication:', {
+      message: e.message,
+      stack: e.stack,
+      name: e.name
+    });
+    return c.json({ 
+      success: false,
+      error: 'Authentication Failed', 
+      reason: 'An error occurred during authentication',
+      details: process.env.ENVIRONMENT === 'development' ? e.message : undefined
+    }, 500);
   }
 };
 
@@ -226,24 +286,89 @@ app.get('/health', (c) => {
 
 // Mock users endpoint
 app.get('/api/users', (c) => {
-  return c.json({
-    users: [
-      { id: 1, name: 'John Doe', email: 'john@example.com' },
-      { id: 2, name: 'Jane Smith', email: 'jane@example.com' }
-    ],
-    cf_ray: c.req.headers.get('cf-ray') || 'dev',
-    worker_id: c.env.WORKER_ID || 'dev'
-  })
+  try {
+    // Parse query parameters using c.req.query() for Hono
+    const limit = parseInt(c.req.query('limit')) || 10;
+    const activeOnly = c.req.query('active') === 'true';
+    
+    // Mock user data
+    const mockUsers = [
+      { id: 1, name: 'John Doe', email: 'john@example.com', active: true },
+      { id: 2, name: 'Jane Smith', email: 'jane@example.com', active: true },
+      { id: 3, name: 'Bob Johnson', email: 'bob@example.com', active: false }
+    ];
+
+    // Apply filters
+    let users = [...mockUsers]; // Create a copy to avoid mutating the original array
+    if (activeOnly) {
+      users = users.filter(user => user.active);
+    }
+    users = users.slice(0, limit);
+
+    return c.json({
+      success: true,
+      data: {
+        users,
+        total: users.length,
+        limit,
+        activeOnly
+      },
+      metadata: {
+        cf_ray: c.req.header('cf-ray') || 'dev',
+        worker_id: c.env.WORKER_ID || 'dev',
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('Error in /api/users:', error);
+    return c.json(
+      { 
+        success: false, 
+        error: 'Failed to fetch users',
+        details: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      },
+      { status: 500 }
+    );
+  }
 })
 
-// New protected route
+// New protected route example
 app.get('/api/protected-data', authMiddleware, (c) => {
-  const user = c.get('user');
-  return c.json({
-    message: 'This is protected data!',
-    user: user,
-    timestamp: new Date().toISOString()
-  });
+  try {
+    const user = c.get('user');
+    console.log('Protected route accessed by user:', user.id);
+    
+    return c.json({
+      success: true,
+      data: {
+        message: 'You have successfully accessed protected data',
+        user: {
+          id: user.id,
+          email: user.email,
+          // Don't include sensitive information
+        },
+        timestamp: new Date().toISOString()
+      },
+      metadata: {
+        cf_ray: c.req.header('cf-ray') || 'dev',
+        worker_id: c.env.WORKER_ID || 'dev'
+      }
+    });
+  } catch (error) {
+    console.error('Error in /api/protected-data:', {
+      message: error.message,
+      stack: error.stack,
+      userId: c.get('user')?.id || 'unknown'
+    });
+    
+    return c.json({
+      success: false,
+      error: 'Internal Server Error',
+      message: 'An error occurred while processing your request',
+      details: process.env.ENVIRONMENT === 'development' ? error.message : undefined
+    }, 500);
+  }
 });
 
 // Mock test endpoint with tiered rate limiting
