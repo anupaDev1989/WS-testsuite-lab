@@ -443,7 +443,7 @@ async function callGeminiApi(prompt, apiKey) {
 }
 
 // Endpoint for Gemini LLM
-app.post('/api/llm/gemini', async (c) => {
+app.post('/api/llm/gemini', authMiddleware, async (c) => {
   try {
     const { prompt } = await c.req.json();
     if (!prompt) {
@@ -467,7 +467,6 @@ app.post('/api/llm/gemini', async (c) => {
 
 
 // --- Placeholder for Secondary LLM Integration ---
-/*
 async function callSecondaryLlmApi(prompt, apiKey) {
   // TODO: Implement API call to a secondary LLM provider
   console.log('callSecondaryLlmApi called with prompt:', prompt);
@@ -478,7 +477,7 @@ async function callSecondaryLlmApi(prompt, apiKey) {
   return Promise.resolve({ response: "This is a response from the secondary LLM (placeholder)." });
 }
 
-app.post('/api/llm/secondary', async (c) => {
+app.post('/api/llm/secondary', authMiddleware, async (c) => {
   try {
     const { prompt } = await c.req.json();
     if (!prompt) {
@@ -500,7 +499,6 @@ app.post('/api/llm/secondary', async (c) => {
     return c.json({ error: 'Failed to get response from secondary LLM', details: error.message }, 500);
   }
 });
-*/
 // --- End LLM Integration ---
 
 

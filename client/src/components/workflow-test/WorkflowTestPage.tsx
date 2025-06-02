@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import MessageInput from './components/MessageInput';
 import MessageLog from './components/MessageLog';
-import LLMResponse from './components/LLMResponse';
+import InfoSection from './components/InfoSection'; // Replaced LLMResponse with InfoSection
 import RawLogDisplay from './components/RawLogDisplay'; // Added import
 import { Message } from './types';
 import { workerService } from '@/lib/workerService'; // Assuming workerService is in this path
 
 const WorkflowTestPage: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [currentLlmResponse, setCurrentLlmResponse] = useState<string>('');
+  // Removed currentLlmResponse state
   const [rawApiCall, setRawApiCall] = useState<string>('');
   const [rawApiResponse, setRawApiResponse] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -24,12 +24,11 @@ const WorkflowTestPage: React.FC = () => {
       id: uuidv4(),
       content,
       sender: 'user',
-      timestamp: new Date(),
-      status: 'success',
+      timestamp: new Date(), // Corrected to Date object
+      status: 'success', // Changed 'sent' to 'success' or undefined if preferred
     };
     setMessages((prevMessages) => [...prevMessages, userMessage]);
     setIsLoading(true);
-    setCurrentLlmResponse(''); // Clear previous response
 
     try {
       const requestBody = { prompt: content };
@@ -60,14 +59,13 @@ const WorkflowTestPage: React.FC = () => {
       }
 
       const llmMessage: Message = {
-        id: uuidv4(),
+        id: uuidv4(), // Assign a new ID for the LLM's message
         content: llmResponseContent,
         sender: 'llm',
-        timestamp: new Date(),
+        timestamp: new Date(), // Corrected to Date object
         status: 'success',
       };
       setMessages((prevMessages) => [...prevMessages, llmMessage]);
-      setCurrentLlmResponse(llmResponseContent);
 
     } catch (error: any) {
       console.error('Error sending message to LLM:', error);
@@ -77,12 +75,10 @@ const WorkflowTestPage: React.FC = () => {
         id: uuidv4(),
         content: `Error: ${errorMessageContent}`,
         sender: 'system',
-        timestamp: new Date(),
+        timestamp: new Date(), // Corrected to Date object
         status: 'error',
-        metadata: { errorDetails: error.response?.data?.details },
       };
       setMessages((prevMessages) => [...prevMessages, systemMessage]);
-      setCurrentLlmResponse(`Error: ${errorMessageContent}`);
 
       let errorResponseLog = `Error: ${errorMessageContent}\n`;
       if (error.response) { // Axios error structure
@@ -113,16 +109,13 @@ const WorkflowTestPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Pane: Input and LLM Response */}
-        <div className="w-1/2 flex flex-col gap-4">
-          <div className="flex-1 flex flex-col bg-gray-800 p-3 rounded-lg shadow-lg">
-            <h2 className="text-xl font-medium mb-2 border-b border-gray-700 pb-2">LLM Response</h2>
-            <LLMResponse response={currentLlmResponse} isLoading={isLoading} />
+        {/* Right Pane: Input and INFO Section */}
+        <div className="w-1/2 flex flex-col bg-gray-800 p-3 rounded-lg shadow-lg space-y-3">
+          <h2 className="text-xl font-medium mb-0 border-b border-gray-700 pb-2">Controls & Info</h2>
+          <div className="flex-1 flex flex-col min-h-0">
+            <InfoSection /> {/* Replaced LLMResponse with InfoSection */}
           </div>
-          <div className="bg-gray-800 p-3 rounded-lg shadow-lg">
-             <h2 className="text-xl font-medium mb-2 border-b border-gray-700 pb-2">Send Message</h2>
-            <MessageInput onSend={handleSendMessage} isLoading={isLoading} />
-          </div>
+          <MessageInput onSend={handleSendMessage} isLoading={isLoading} />
         </div>
       </div>
     </div>
