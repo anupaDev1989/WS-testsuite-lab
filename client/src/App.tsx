@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import WorkerTestPage from "@/pages/WorkerTestPage";
+import WorkflowTestPageWrapper from "@/pages/WorkflowTestPageWrapper"; // Added import
 import UpdatePasswordPage from "@/pages/UpdatePasswordPage";
 import { ThemeProvider } from "next-themes";
 import { CloudCog } from "lucide-react";
@@ -29,6 +30,11 @@ function NavBar() {
               Cloudflare Worker Test Console
             </div>
           </Link>
+          <Link href="/workflow-test">
+            <div className={`flex items-center px-3 py-2 rounded-md text-sm font-medium ${location === '/workflow-test' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'}`}>
+              Workflow Test
+            </div>
+          </Link>
         </div>
         <Button 
           variant="outline" 
@@ -47,7 +53,7 @@ const Router = () => {
   const [location] = useLocation();
   
   // Check authentication for protected routes
-  const isProtectedRoute = ['/', '/worker-test', '/update-password'].includes(location);
+  const isProtectedRoute = ['/', '/worker-test', '/update-password', '/workflow-test'].includes(location); // Added /workflow-test
   const isAuthenticated = localStorage.getItem('isLoggedIn') === 'true';
   
   // Redirect to signin if trying to access protected routes without authentication
@@ -69,6 +75,7 @@ const Router = () => {
           <Route path="/worker-test" component={WorkerTestPage} />
           <Route path="/update-password" component={UpdatePasswordPage} />
           <Route path="/signin" component={SignInPage} />
+          <Route path="/workflow-test" component={WorkflowTestPageWrapper} /> {/* Added route */}
           <Route component={NotFound} />
         </Switch>
       </div>
