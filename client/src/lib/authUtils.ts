@@ -10,7 +10,7 @@ const JWT_SESSION_STORAGE_KEY = 'supabase_jwt';
  */
 export async function getSupabaseJWT(): Promise<string | null> {
   try {
-    console.log('authUtils: Fetching session from Supabase to get/refresh JWT...');
+    console.log('authUtils: getSupabaseJWT called. Fetching session from Supabase...');
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
     if (sessionError) {
@@ -32,7 +32,7 @@ export async function getSupabaseJWT(): Promise<string | null> {
     }
 
     const jwt = sessionData.session.access_token;
-    console.log('authUtils: Successfully obtained JWT from Supabase session.');
+    console.log('authUtils: Successfully obtained JWT from Supabase session (first 10: ' + jwt.substring(0,10) + '...).');
 
     // Save the fresh token to sessionStorage
     try {

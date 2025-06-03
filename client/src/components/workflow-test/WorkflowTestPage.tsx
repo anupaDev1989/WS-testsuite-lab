@@ -6,6 +6,7 @@ import InfoSection from './components/InfoSection'; // Replaced LLMResponse with
 import RawLogDisplay from './components/RawLogDisplay'; // Added import
 import { Message } from './types';
 import { workerService } from '@/lib/workerService'; // Assuming workerService is in this path
+import { getSupabaseJWT } from '../../lib/authUtils';
 
 const WorkflowTestPage: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -34,16 +35,26 @@ const WorkflowTestPage: React.FC = () => {
       const requestBody = { prompt: content };
       const apiEndpoint = '/api/llm/gemini';
 
-      // Prepare raw request log (actual headers might differ based on workerService implementation)
+      console.log('[WorkflowTestPage] Attempting to get JWT via getSupabaseJWT()...');
+      const accessToken = await getSupabaseJWT();
+      console.log('[WorkflowTestPage] Retrieved accessToken:', accessToken ? `Token found (first 10: ${accessToken.substring(0,10)}...)` : 'No token');
+      
+      const headers: Record<string, string> = {}; // Initialize headers
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      } else {
+        console.warn('[WorkflowTestPage] No valid JWT token found via getSupabaseJWT(). User may not be authenticated.');
+      }
+
+      // Prepare raw request log, now including headers
+      console.log('[WorkflowTestPage] final headers object before request:', headers);
       let requestLog = `POST ${apiEndpoint}\n`;
-      // Note: Actual headers sent by workerService might not be easily accessible here
-      // unless workerService is modified to return them or interceptors are used.
-      // For now, we'll just log the body.
-      requestLog += `Request Body:\n${JSON.stringify(requestBody, null, 2)}`;
+      requestLog += `Headers: ${JSON.stringify(headers, null, 2)}\n`; 
+      requestLog += `Request Body: ${JSON.stringify(requestBody, null, 2)}`;
       setRawApiCall(requestLog);
 
-      // Make the API call
-      const response = await workerService.post(apiEndpoint, requestBody); // Removed generic type arguments
+      // Make the API call with the JWT token in the headers
+      const response = await workerService.post(apiEndpoint, requestBody, headers);
 
       // Prepare raw response log
       let responseLog = `Status: ${response.status || 'N/A'}\n`;

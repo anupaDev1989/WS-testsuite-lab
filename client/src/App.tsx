@@ -10,6 +10,7 @@ import UpdatePasswordPage from "@/pages/UpdatePasswordPage";
 import { ThemeProvider } from "next-themes";
 import { CloudCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import LoginForm from "@/components/LoginForm"; // Import LoginForm
 
 function NavBar() {
   const [location] = useLocation();
@@ -83,31 +84,22 @@ const Router = () => {
   );
 };
 
-// Simple sign-in page for the router
+// SignInPage now uses the actual LoginForm component
 function SignInPage() {
   const navigate = useLocation()[1];
   
-  const handleSignIn = () => {
-    localStorage.setItem('isLoggedIn', 'true');
-    navigate('/'); // Redirect to root which will handle the redirection to worker-test
+  const handleLoginSuccess = () => {
+    // localStorage.setItem('isLoggedIn', 'true'); // LoginForm already does this
+    // The router will still use 'isLoggedIn' from localStorage for route protection.
+    // Optionally, pre-cache the JWT here if desired, though WorkflowTestPage will also fetch it.
+    // import { getSupabaseJWT } from '@/lib/authUtils'; // Would need to import this if used
+    // getSupabaseJWT(); 
+    navigate('/'); // Redirect to root, which should then redirect to /worker-test if authenticated
   };
   
   return (
     <div className="flex items-center justify-center h-full bg-[#0E1525]">
-      <div className="bg-[#1E293B] p-8 rounded-lg shadow-lg max-w-md w-full">
-        <h1 className="text-2xl font-bold text-white mb-6 text-center">Welcome to Test Suite Lab</h1>
-        <p className="text-gray-300 mb-6 text-center">
-          Please sign in to access the Cloudflare Worker Test Console
-        </p>
-        <div className="flex justify-center">
-          <Button 
-            onClick={handleSignIn}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            Sign In
-          </Button>
-        </div>
-      </div>
+      <LoginForm onLoginSuccess={handleLoginSuccess} />
     </div>
   );
 }
