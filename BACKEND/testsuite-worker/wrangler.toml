@@ -14,19 +14,16 @@ SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 [observability]
 enabled = true
 
-[[kv_namespaces]]
-binding = "TESTSUITE_KV"
-id = "06cb20bef9b747be92ec2c88335a7479"
 
 # --- Rate Limiter Bindings ---
 [[unsafe.bindings]]
-  name = "FREE_USER_RATE_LIMITER"
+  name = "LLM_RATE_LIMITER"
   type = "ratelimit"
-  namespace_id = "1001" # Reverted to numeric string
-  simple = { limit = 4, period = 60 } # Matches 10 in worker code
+  namespace_id = "801"
+  simple = { limit = 3, period = 60 }
 
 [[unsafe.bindings]]
-  name = "PAID_USER_RATE_LIMITER"
+  name = "WORKER_RATE_LIMITER"
   type = "ratelimit"
-  namespace_id = "1002" # Reverted to numeric string
-  simple = { limit = 10, period = 60 } # Matches 100 in worker code
+  namespace_id = "800"
+  simple = { limit = 10, period = 60 }
