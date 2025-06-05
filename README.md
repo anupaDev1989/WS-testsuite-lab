@@ -1,15 +1,19 @@
 # Test Suite Lab
 
-A comprehensive testing and development platform with a React-based frontend and Cloudflare Worker backend, featuring rate limiting, authentication, and API testing capabilities.
+A comprehensive testing and development platform with a React-based frontend and Cloudflare Worker backend, featuring robust rate limiting, authentication, and API testing capabilities.
 
 ## Features
 
-- 🔐 **Authentication** - Secure user authentication using Supabase Auth
-- 🚦 **Rate Limiting** - Tiered rate limiting for API endpoints
+- 🔐 **Authentication** - Secure user authentication using Supabase Auth with JWT
+- 🚦 **Intelligent Rate Limiting** - Multi-tiered rate limiting with user-friendly error handling
+  - LLM Endpoints: 3 requests per minute
+  - General API Endpoints: 10 requests per minute
+  - Health check endpoints excluded from rate limiting
 - 🤖 **AI Integration** - Gemini AI integration for natural language processing
-- 🛠️ **API Testing** - Built-in tools for testing RESTful APIs
-- 📊 **Real-time Monitoring** - Live rate limit and usage statistics
-- 🔄 **State Management** - Persistent state across sessions
+- 🛠️ **API Testing** - Built-in tools for testing RESTful APIs with detailed error reporting
+- 📊 **Real-time Monitoring** - Live rate limit and usage statistics with countdown timers
+- 🛡️ **Error Handling** - User-friendly error messages with retry guidance
+- 🔄 **State Management** - Persistent state across sessions with React Query
 
 ## Tech Stack
 
@@ -21,10 +25,18 @@ A comprehensive testing and development platform with a React-based frontend and
 - wouter for routing
 
 ### Backend
-- Cloudflare Workers
-- Hono.js web framework
-- Supabase for authentication and database
-- Gemini AI integration
+- **Cloudflare Workers** with native RateLimiter
+- **Hono.js** web framework for middleware and routing
+- **Supabase** for authentication and database
+- **Gemini AI** integration for natural language processing
+- **Rate Limiting** with Cloudflare's native RateLimiter
+  - Separate limits for LLM and general API endpoints
+  - Detailed rate limit headers
+  - Health check endpoint exclusion
+- **Error Handling**
+  - Structured error responses
+  - Human-readable messages
+  - Retry timing information
 
 ## Getting Started
 
@@ -93,6 +105,68 @@ test-suite-lab/
 │       └── wrangler.toml   # Worker configuration
 ├── CHANGELOG.md           # Project changelog
 └── README.md              # This file
+```
+
+## Rate Limiting
+
+### Overview
+
+The application implements rate limiting to ensure fair usage and prevent abuse. There are two main rate limits:
+
+1. **LLM Endpoints** (`/api/llm/*`)
+   - 3 requests per 60 seconds
+   - Stricter limits for resource-intensive operations
+
+2. **General API Endpoints**
+   - 10 requests per 60 seconds
+   - Applies to all other authenticated endpoints
+
+### Rate Limit Headers
+
+Responses include the following rate limit headers:
+
+- `X-RateLimit-Limit`: Maximum number of requests allowed in the time window
+- `X-RateLimit-Remaining`: Number of requests remaining in the current window
+- `X-RateLimit-Reset`: Time when the rate limit resets (in seconds since epoch)
+- `Retry-After`: Time to wait before retrying (in seconds)
+
+### Handling Rate Limits
+
+When a rate limit is exceeded, the API returns a `429 Too Many Requests` response with a JSON body containing:
+
+```json
+{
+  "error": "rate_limit_exceeded",
+  "message": "Too Many Requests",
+  "userMessage": "You've made too many requests. Please try again in about 1 minute.",
+  "details": {
+    "limit": 3,
+    "period": 60,
+    "retryAfter": 45,
+    "retryAfterHuman": "in about 1 minute",
+    "remaining": 0,
+    "currentCount": 3,
+    "endpointType": "LLM",
+    "friendlyLimit": "3 requests per minute",
+    "docs": "https://docs.testsuitelab.com/rate-limits"
+  },
+  "actions": [
+    {
+      "label": "Wait and try again",
+      "description": "Your rate limit will reset in about 45 seconds"
+    },
+    {
+      "label": "Upgrade your plan",
+      "url": "https://testsuitelab.com/pricing",
+      "description": "Get higher rate limits with a paid plan"
+    },
+    {
+      "label": "Contact support",
+      "url": "https://testsuitelab.com/support",
+      "description": "Need help or have questions?"
+    }
+  ]
+}
 ```
 
 ## API Documentation

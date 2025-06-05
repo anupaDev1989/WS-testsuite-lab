@@ -143,26 +143,86 @@ Test Suite Lab is a full-stack application with a React-based frontend and a Clo
 
 ## Rate Limiting System
 
+### Overview
+The rate limiting system uses Cloudflare's native Rate Limiting API to enforce usage limits across different types of endpoints. It provides detailed error responses and supports multiple rate limiting tiers.
+
+### Rate Limiting Tiers
+
+1. **LLM Endpoints** (`/api/llm/*`)
+   - Free Tier: 3 requests per 60 seconds
+   - Paid Tier: 20 requests per 60 seconds
+   - Applies to all LLM-related endpoints
+
+2. **General API Endpoints**
+   - 10 requests per 60 seconds
+   - Applies to all other authenticated endpoints
+
+3. **Excluded Paths**
+   - `/health` - Health check endpoint (unlimited access)
+   - `/api/llm/*` - Handled by LLM-specific rate limiter
+
 ### Configuration (`wrangler.toml`)
 ```toml
 [[unsafe.bindings]]
-  name = "FREE_USER_RATE_LIMITER"
+  name = "LLM_RATE_LIMITER"
   type = "ratelimit"
-  namespace_id = "1001"
-  simple = { limit = 4, period = 60 }
+  namespace_id = "801"
+  simple = { limit = 3, period = 60 }
 
 [[unsafe.bindings]]
-  name = "PAID_USER_RATE_LIMITER"
+  name = "WORKER_RATE_LIMITER"
   type = "ratelimit"
-  namespace_id = "1002"
-  simple = { limit = 20, period = 60 }
+  namespace_id = "800"
+  simple = { limit = 10, period = 60 }
+```
+
+### Error Response Format
+When a rate limit is exceeded, the API returns a 429 status code with the following JSON structure:
+
+```json
+{
+  "error": "rate_limit_exceeded",
+  "message": "Too Many Requests",
+  "userMessage": "You've made too many requests. Please try again in about 1 minute.",
+  "details": {
+    "limit": 3,
+    "period": 60,
+    "retryAfter": 45,
+    "retryAfterHuman": "in about 1 minute",
+    "remaining": 0,
+    "currentCount": 3,
+    "endpointType": "LLM",
+    "friendlyLimit": "3 requests per minute",
+    "docs": "https://docs.testsuitelab.com/rate-limits"
+  },
+  "actions": [
+    {
+      "label": "Wait and try again",
+      "description": "Your rate limit will reset in about 45 seconds"
+    },
+    {
+      "label": "Upgrade your plan",
+      "url": "https://testsuitelab.com/pricing",
+      "description": "Get higher rate limits with a paid plan"
+    },
+    {
+      "label": "Contact support",
+      "url": "https://testsuitelab.com/support",
+      "description": "Need help or have questions?"
+    }
+  ]
+}
 ```
 
 ### Client-Side Handling
-- Monitors rate limit headers
-- Displays remaining requests to user
-- Prevents requests when limit is reached
-- Shows countdown to reset
+- **RateLimitError Component**: Displays user-friendly error messages with countdown timer
+- **useRateLimit Hook**: Manages rate limit state and error handling
+- **Automatic Retry**: Suggests when to retry the request
+- **Rate Limit Headers**: All responses include rate limit information:
+  - `X-RateLimit-Limit`: Maximum requests allowed
+  - `X-RateLimit-Remaining`: Remaining requests in current window
+  - `X-RateLimit-Reset`: Timestamp when limit resets
+  - `Retry-After`: Seconds to wait before retrying (on 429)
 
 ## Environment Configuration
 

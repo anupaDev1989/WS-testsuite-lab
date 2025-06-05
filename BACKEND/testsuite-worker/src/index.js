@@ -19,6 +19,55 @@ const LLM_LIMIT = 3;
 const WORKER_LIMIT = 10;
 const RATE_LIMIT_PERIOD = 60; // 60 seconds for both
 
+// Helper function to format time in a human-readable way
+function formatTimeRemaining(seconds) {
+  if (seconds < 60) {
+    return `in ${seconds} second${seconds !== 1 ? 's' : ''}`;
+  }
+  
+  const minutes = Math.ceil(seconds / 60);
+  return `in about ${minutes} minute${minutes !== 1 ? 's' : ''}`;
+}
+
+// Helper function to create a user-friendly rate limit error response
+function createRateLimitResponse(limit, period, timeUntilReset, endpointType = 'API') {
+  const retryTime = formatTimeRemaining(timeUntilReset);
+  const friendlyLimit = endpointType === 'LLM' ? '3 requests per minute' : '10 requests per minute';
+  
+  return {
+    error: 'rate_limit_exceeded',
+    message: 'Too Many Requests',
+    userMessage: `You've made too many requests. Please try again ${retryTime}.`,
+    details: {
+      limit: limit,
+      period: period,
+      retryAfter: timeUntilReset,
+      retryAfterHuman: retryTime,
+      remaining: 0,
+      currentCount: limit,
+      endpointType: endpointType,
+      friendlyLimit: friendlyLimit,
+      docs: 'https://docs.testsuitelab.com/rate-limits'
+    },
+    actions: [
+      {
+        label: 'Wait and try again',
+        description: `Your rate limit will reset ${retryTime}`
+      },
+      {
+        label: 'Upgrade your plan',
+        url: 'https://testsuitelab.com/pricing',
+        description: 'Get higher rate limits with a paid plan'
+      },
+      {
+        label: 'Contact support',
+        url: 'https://testsuitelab.com/support',
+        description: 'Need help or have questions?'
+      }
+    ]
+  };
+}
+
 // CORS Middleware - applied to all routes
 app.use('*', cors({
   origin: '*',
@@ -208,15 +257,7 @@ const llmRateLimitMiddleware = async (c, next) => {
     console.log(`LLM rate limit exceeded for key: ${rateLimitKey}. Retry after: ${timeUntilReset}s. Status: ${LLM_LIMIT}/${LLM_LIMIT} (limit reached)`);
     c.header('Retry-After', timeUntilReset.toString());
     return c.json(
-      {
-        message: 'Too Many Requests',
-        limit: LLM_LIMIT,
-        period: RATE_LIMIT_PERIOD,
-        retryAfter: timeUntilReset,
-        remaining: responseRemaining,
-        key_used: rateLimitKey,
-        current_count: LLM_LIMIT
-      },
+      createRateLimitResponse(LLM_LIMIT, RATE_LIMIT_PERIOD, timeUntilReset, 'LLM'),
       429
     );
   }
@@ -305,15 +346,7 @@ const workerRateLimitMiddleware = async (c, next) => {
     console.log(`Worker rate limit exceeded for key: ${rateLimitKey}. Retry after: ${timeUntilReset}s. Status: ${WORKER_LIMIT}/${WORKER_LIMIT} (limit reached)`);
     c.header('Retry-After', timeUntilReset.toString());
     return c.json(
-      {
-        message: 'Too Many Requests',
-        limit: WORKER_LIMIT,
-        period: RATE_LIMIT_PERIOD,
-        retryAfter: timeUntilReset,
-        remaining: responseRemaining,
-        key_used: rateLimitKey,
-        current_count: WORKER_LIMIT
-      },
+      createRateLimitResponse(WORKER_LIMIT, RATE_LIMIT_PERIOD, timeUntilReset, 'API'),
       429
     );
   }
