@@ -8,6 +8,8 @@ import WorkerTestPage from "@/pages/WorkerTestPage";
 import WorkflowTestPageWrapper from "@/pages/WorkflowTestPageWrapper"; // Added import
 import UpdatePasswordPage from "@/pages/UpdatePasswordPage";
 import { ThemeProvider } from "next-themes";
+import { useEffect, useState } from 'react';
+import useUuidStore from './stores/uuidStore';
 import { CloudCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import LoginForm from "@/components/LoginForm"; // Import LoginForm
@@ -105,6 +107,48 @@ function SignInPage() {
 }
 
 function App() {
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        await useUuidStore.getState().initializeUuid();
+        setIsInitialized(true);
+      } catch (e: any) {
+        console.error('Failed to initialize app:', e);
+        setError(e.message || 'Failed to initialize application');
+      }
+    };
+
+    initializeApp();
+  }, []);
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-[#0E1525] text-white p-4">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Initialization Error</h1>
+          <p className="mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isInitialized) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-[#0E1525]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>

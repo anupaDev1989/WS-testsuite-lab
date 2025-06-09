@@ -5,25 +5,26 @@ import { createClient } from '@supabase/supabase-js'
 // --- Env interface for type safety (for Typescript users, otherwise just a comment)
 /**
  * @typedef {Object} Env
- * @property {import('@cloudflare/workers-types').RateLimiter} FREE_USER_RATE_LIMITER
- * @property {import('@cloudflare/workers-types').RateLimiter} PAID_USER_RATE_LIMITER
+ * @property {import('@cloudflare/workers-types').RateLimiter} LLM_RATE_LIMITER
+ * @property {import('@cloudflare/workers-types').RateLimiter} WORKER_RATE_LIMITER
  * @property {string} SUPABASE_URL
  * @property {string} SUPABASE_ANON_KEY
  * @property {string} GEMINI_API_KEY
+ * @property {string} [SECONDARY_LLM_API_KEY] // Optional secondary LLM key
+ * @property {string} [WORKER_ID] // Optional worker ID for metadata
+ * @property {any} [DB] // If using D1 or other DB bindings
  */
 
 const app = new Hono()
 
-// Constants for rate limits
-const LLM_LIMIT = 3;
-const WORKER_LIMIT = 10;
-const RATE_LIMIT_PERIOD = 60; // 60 seconds for both
+import { rateLimitMiddleware, defaultRateLimitConfigs } from './middleware/rateLimit.ts';
 
 // CORS Middleware - applied to all routes
 app.use('*', cors({
-  origin: '*',
+  origin: '*', // Adjust for production if needed
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization', 'x-rate-limit-tier'],
+  allowHeaders: ['Content-Type', 'Authorization', 'x-client-id', 'x-rate-limit-tier'], // Added x-client-id
+  exposeHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset', 'Retry-After'], // Standard rate limit headers
 }))
 
 // Authentication Middleware
@@ -127,199 +128,8 @@ const authMiddleware = async (c, next) => {
   }
 };
 
-// LLM Rate Limiting Middleware - for /api/llm/* endpoints
-const llmRateLimitMiddleware = async (c, next) => {
-  if (c.req.method === 'OPTIONS') {
-    // Do not rate limit OPTIONS requests. Pass through for CORS handling.
-    await next();
-    return;
-  }
-
-  const clientIp = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || 'unknown_ip';
-  let rateLimitKey;
-  let userId = null;
-
-  // Try to get user ID from auth header if present
-  const authHeader = c.req.header('Authorization');
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.substring(7);
-    try {
-      const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
-      if (!c.env.SUPABASE_URL || !c.env.SUPABASE_ANON_KEY) {
-        console.warn('Supabase URL or Anon Key not configured in environment for rate limiting. Falling back to IP-based.');
-      } else {
-        const { data: { user }, error } = await supabase.auth.getUser(token);
-        if (error) {
-          console.warn('JWT validation error for rate limiting:', error.message);
-        } else if (user && user.id) {
-          userId = user.id;
-        } else {
-          console.warn('JWT seemed valid, but no user object or user.id returned for rate limiting.');
-        }
-      }
-    } catch (e) {
-      console.warn('Exception during JWT processing for rate limiting:', e.message);
-    }
-  }
-
-  // Use user ID if available, otherwise use IP
-  rateLimitKey = userId ? `llm:user:${userId}` : `llm:ip:${clientIp}`;
-  
-  // Apply rate limit
-  const limiterBinding = c.env.LLM_RATE_LIMITER;
-  if (!limiterBinding) {
-    console.error('LLM_RATE_LIMITER binding not found in env. Check wrangler.toml and bindings.');
-    return c.json({ error: 'LLM rate limiter not configured.' }, 500);
-  }
-
-  // Debug logs
-  console.log(`DEBUG: Request IP: ${clientIp}`);
-  console.log(`DEBUG: Auth Header Present: ${!!authHeader}`);
-  console.log(`DEBUG: User ID from Token: ${userId || 'N/A'}`);
-  console.log(`DEBUG: Rate Limit Key Used: ${rateLimitKey}`);
-  console.log(`DEBUG: Limiter Binding: LLM_RATE_LIMITER`);
-  console.log(`DEBUG: Applied Limit: ${LLM_LIMIT}, Applied Period: ${RATE_LIMIT_PERIOD}s`);
-
-  const nowMs = Date.now();
-  const { success, retryAfter } = await limiterBinding.limit({ key: rateLimitKey });
-  
-  // Calculate remaining requests and reset time
-  const responseRemaining = success ? Math.max(0, LLM_LIMIT - 1) : 0;
-  const responseReset = Math.ceil((nowMs + (RATE_LIMIT_PERIOD * 1000)) / 1000); // Reset time in seconds (Unix timestamp)
-  const timeUntilReset = Math.ceil((responseReset * 1000 - nowMs) / 1000); // Time until reset in seconds from now
-  
-  c.set('rateLimitResponseData', {
-    limit: LLM_LIMIT,
-    period: RATE_LIMIT_PERIOD,
-    key: rateLimitKey,
-    success: success,
-    retryAfter: success ? 0 : timeUntilReset,
-    remaining: responseRemaining,
-    reset: responseReset,
-    currentCount: success ? 1 : LLM_LIMIT
-  });
-  
-  // Set standard rate limit headers
-  c.header('X-RateLimit-Limit', LLM_LIMIT.toString());
-  c.header('X-RateLimit-Remaining', responseRemaining.toString());
-  c.header('X-RateLimit-Reset', Math.floor(responseReset).toString());
-  
-  if (!success) {
-    console.log(`LLM rate limit exceeded for key: ${rateLimitKey}. Retry after: ${timeUntilReset}s. Status: ${LLM_LIMIT}/${LLM_LIMIT} (limit reached)`);
-    c.header('Retry-After', timeUntilReset.toString());
-    return c.json(
-      {
-        message: 'Too Many Requests',
-        limit: LLM_LIMIT,
-        period: RATE_LIMIT_PERIOD,
-        retryAfter: timeUntilReset,
-        remaining: responseRemaining,
-        key_used: rateLimitKey,
-        current_count: LLM_LIMIT
-      },
-      429
-    );
-  }
-  
-  await next();
-};
-
-// Worker Rate Limiting Middleware - for all other API endpoints
-const workerRateLimitMiddleware = async (c, next) => {
-  if (c.req.method === 'OPTIONS') {
-    // Do not rate limit OPTIONS requests. Pass through for CORS handling.
-    await next();
-    return;
-  }
-
-  const clientIp = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || 'unknown_ip';
-  let rateLimitKey;
-  let userId = null;
-
-  // Try to get user ID from auth header if present
-  const authHeader = c.req.header('Authorization');
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.substring(7);
-    try {
-      const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
-      if (!c.env.SUPABASE_URL || !c.env.SUPABASE_ANON_KEY) {
-        console.warn('Supabase URL or Anon Key not configured in environment for rate limiting. Falling back to IP-based.');
-      } else {
-        const { data: { user }, error } = await supabase.auth.getUser(token);
-        if (error) {
-          console.warn('JWT validation error for rate limiting:', error.message);
-        } else if (user && user.id) {
-          userId = user.id;
-        } else {
-          console.warn('JWT seemed valid, but no user object or user.id returned for rate limiting.');
-        }
-      }
-    } catch (e) {
-      console.warn('Exception during JWT processing for rate limiting:', e.message);
-    }
-  }
-
-  // Use user ID if available, otherwise use IP
-  rateLimitKey = userId ? `worker:user:${userId}` : `worker:ip:${clientIp}`;
-  
-  // Apply rate limit
-  const limiterBinding = c.env.WORKER_RATE_LIMITER;
-  if (!limiterBinding) {
-    console.error('WORKER_RATE_LIMITER binding not found in env. Check wrangler.toml and bindings.');
-    return c.json({ error: 'Worker rate limiter not configured.' }, 500);
-  }
-
-  // Debug logs
-  console.log(`DEBUG: Request IP: ${clientIp}`);
-  console.log(`DEBUG: Auth Header Present: ${!!authHeader}`);
-  console.log(`DEBUG: User ID from Token: ${userId || 'N/A'}`);
-  console.log(`DEBUG: Rate Limit Key Used: ${rateLimitKey}`);
-  console.log(`DEBUG: Limiter Binding: WORKER_RATE_LIMITER`);
-  console.log(`DEBUG: Applied Limit: ${WORKER_LIMIT}, Applied Period: ${RATE_LIMIT_PERIOD}s`);
-
-  const nowMs = Date.now();
-  const { success, retryAfter } = await limiterBinding.limit({ key: rateLimitKey });
-  
-  // Calculate remaining requests and reset time
-  const responseRemaining = success ? Math.max(0, WORKER_LIMIT - 1) : 0;
-  const responseReset = Math.ceil((nowMs + (RATE_LIMIT_PERIOD * 1000)) / 1000); // Reset time in seconds (Unix timestamp)
-  const timeUntilReset = Math.ceil((responseReset * 1000 - nowMs) / 1000); // Time until reset in seconds from now
-  
-  c.set('rateLimitResponseData', {
-    limit: WORKER_LIMIT,
-    period: RATE_LIMIT_PERIOD,
-    key: rateLimitKey,
-    success: success,
-    retryAfter: success ? 0 : timeUntilReset,
-    remaining: responseRemaining,
-    reset: responseReset,
-    currentCount: success ? 1 : WORKER_LIMIT
-  });
-  
-  // Set standard rate limit headers
-  c.header('X-RateLimit-Limit', WORKER_LIMIT.toString());
-  c.header('X-RateLimit-Remaining', responseRemaining.toString());
-  c.header('X-RateLimit-Reset', Math.floor(responseReset).toString());
-  
-  if (!success) {
-    console.log(`Worker rate limit exceeded for key: ${rateLimitKey}. Retry after: ${timeUntilReset}s. Status: ${WORKER_LIMIT}/${WORKER_LIMIT} (limit reached)`);
-    c.header('Retry-After', timeUntilReset.toString());
-    return c.json(
-      {
-        message: 'Too Many Requests',
-        limit: WORKER_LIMIT,
-        period: RATE_LIMIT_PERIOD,
-        retryAfter: timeUntilReset,
-        remaining: responseRemaining,
-        key_used: rateLimitKey,
-        current_count: WORKER_LIMIT
-      },
-      429
-    );
-  }
-  
-  await next();
-};
+// Old rate limiting middleware functions have been removed.
+// New rate limiting logic is handled by './middleware/rateLimit.ts'.
 
 // Health check endpoint
 app.get('/health', (c) => {
@@ -417,17 +227,31 @@ app.get('/api/protected-data', authMiddleware, (c) => {
   }
 });
 
-// Apply LLM rate limiting to all LLM endpoints
-app.use('/api/llm/*', llmRateLimitMiddleware);
+// Apply new rate limiting middleware
 
-// Apply worker rate limiting to other API endpoints (except health check)
-app.use('/api/*', (c, next) => {
-  // Skip if it's an LLM endpoint (already handled) or health check
-  if (c.req.path.startsWith('/api/llm/') || c.req.path === '/api/health') {
-    return next();
-  }
-  return workerRateLimitMiddleware(c, next);
-});
+// LLM Endpoints Rate Limiting
+app.use(
+  '/api/llm/*',
+  rateLimitMiddleware({
+    ...defaultRateLimitConfigs.llm,
+    skip: (c) => c.req.method === 'OPTIONS', // Skip OPTIONS for LLM routes
+  })
+);
+
+// General API Endpoints Rate Limiting
+app.use(
+  '/api/*',
+  rateLimitMiddleware({
+    ...defaultRateLimitConfigs.worker,
+    skip: (c) => { // Skip for OPTIONS, /health (and /api/health), and /api/llm/* (already handled)
+      const path = c.req.path;
+      // Check for exact /health or /api/health, and /api/llm/* prefix
+      const isHealthPath = path === '/health' || path.startsWith('/api/health');
+      const isLlmPath = path.startsWith('/api/llm/');
+      return c.req.method === 'OPTIONS' || isHealthPath || isLlmPath;
+    },
+  })
+);
 
 // Test route (now with worker rate limiting applied via middleware above)
 app.get('/api/test', (c) => {
