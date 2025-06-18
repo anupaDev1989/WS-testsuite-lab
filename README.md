@@ -5,11 +5,12 @@ A comprehensive testing and development platform with a React-based frontend and
 ## Features
 
 - 🔐 **Authentication** - Secure user authentication using Supabase Auth
-- 🚦 **Rate Limiting** - Tiered rate limiting for API endpoints
+- 🚦 **Rate Limiting** - Tiered rate limiting for API endpoints with persistent client identification
 - 🤖 **AI Integration** - Gemini AI integration for natural language processing
 - 🛠️ **API Testing** - Built-in tools for testing RESTful APIs
 - 📊 **Real-time Monitoring** - Live rate limit and usage statistics
-- 🔄 **State Management** - Persistent state across sessions
+- 🔄 **State Management** - Persistent state across sessions with Zustand and localStorage
+- 🆔 **Persistent Client ID** - Unique client identification that persists across page refreshes
 
 ## Tech Stack
 
@@ -128,15 +129,22 @@ Authorization: Bearer <your-jwt-token>
 
 ## Rate Limiting
 
-The API implements tiered rate limiting:
+The API implements tiered rate limiting with persistent client identification:
 
-- **Free Tier**: 4 requests per minute
-- **Paid Tier**: 20 requests per minute
+- **LLM Endpoints**: 3 requests per minute (e.g., `/api/llm/*`)
+- **General API Endpoints**: 100 requests per minute (e.g., `/api/*`)
 
-Rate limit headers are included in all responses:
-- `X-RateLimit-Limit`: Maximum requests allowed
-- `X-RateLimit-Remaining`: Remaining requests
+#### Client Identification
+- Each client is assigned a persistent UUID stored in `localStorage`
+- The UUID is sent in the `x-client-id` header with every request
+- Rate limits are enforced per client UUID, not just IP address
+
+#### Rate Limit Headers
+All responses include these headers:
+- `X-RateLimit-Limit`: Maximum requests allowed in the current window
+- `X-RateLimit-Remaining`: Remaining requests in the current window
 - `X-RateLimit-Reset`: When the limit resets (UNIX timestamp)
+- `Retry-After`: Only present when rate limited (seconds to wait)
 
 ## Contributing
 
