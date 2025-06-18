@@ -10,9 +10,12 @@ import UpdatePasswordPage from "@/pages/UpdatePasswordPage";
 import { ThemeProvider } from "next-themes";
 import { useEffect, useState } from 'react';
 import useUuidStore from './stores/uuidStore';
-import { CloudCog } from "lucide-react";
+import { CloudCog, User, LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import LoginForm from "@/components/LoginForm"; // Import LoginForm
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import LoginForm from "@/components/LoginForm";
+import ProfilePage from "@/pages/ProfilePage";
 
 function NavBar() {
   const [location] = useLocation();
@@ -39,14 +42,35 @@ function NavBar() {
             </div>
           </Link>
         </div>
-        <Button 
-          variant="outline" 
-          size="sm"
-          className="text-white border-gray-600 hover:bg-gray-700"
-          onClick={handleSignOut}
-        >
-          Sign Out
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="bg-gray-600 text-white">
+                  <User className="h-4 w-4" />
+                </AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56" align="end" forceMount>
+            <Link href="/profile">
+              <DropdownMenuItem className="cursor-pointer">
+                <User className="mr-2 h-4 w-4" />
+                <span>Profile</span>
+              </DropdownMenuItem>
+            </Link>
+            <Link href="/settings">
+              <DropdownMenuItem className="cursor-pointer">
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Settings</span>
+              </DropdownMenuItem>
+            </Link>
+            <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Log out</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </nav>
   );
@@ -56,7 +80,7 @@ const Router = () => {
   const [location] = useLocation();
   
   // Check authentication for protected routes
-  const isProtectedRoute = ['/', '/worker-test', '/update-password', '/workflow-test'].includes(location); // Added /workflow-test
+  const isProtectedRoute = ['/', '/worker-test', '/update-password', '/workflow-test', '/profile'].includes(location);
   const isAuthenticated = localStorage.getItem('isLoggedIn') === 'true';
   
   // Redirect to signin if trying to access protected routes without authentication
@@ -78,7 +102,8 @@ const Router = () => {
           <Route path="/worker-test" component={WorkerTestPage} />
           <Route path="/update-password" component={UpdatePasswordPage} />
           <Route path="/signin" component={SignInPage} />
-          <Route path="/workflow-test" component={WorkflowTestPageWrapper} /> {/* Added route */}
+          <Route path="/workflow-test" component={WorkflowTestPageWrapper} />
+          <Route path="/profile" component={ProfilePage} />
           <Route component={NotFound} />
         </Switch>
       </div>

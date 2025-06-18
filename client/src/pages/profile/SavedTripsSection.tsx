@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLlmContext } from '@/hooks/useLlmContext';
 import { ErrorMessage } from '@/components/ui/error-message';
 import { useSuccessToast } from '@/components/ui/success-toast';
+import { apiClient } from '@/lib/apiClient';
 
 interface Trip {
   id: string;
@@ -34,40 +35,18 @@ export function SavedTripsSection() {
   const { data: tripsData, isLoading } = useQuery({
     queryKey: ['trips'],
     queryFn: async () => {
-      const token = await getToken();
-      const response = await fetch('/api/trips', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch trips');
-      }
-      
-      const data = await response.json();
-      return data.trips as Trip[];
+      return apiClient.getTrips();
     }
   });
 
   // Save trip mutation
   const saveTripMutation = useMutation({
     mutationFn: async ({ title, data }: { title: string, data: any }) => {
-      const token = await getToken();
-      const response = await fetch('/api/trips', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ title, data })
+      return apiClient.saveTrip({
+        title,
+        content: data,
+        city: data.city || null
       });
-      
-      if (!response.ok) {
-        throw new Error('Failed to save trip');
-      }
-      
-      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['trips'] });
@@ -87,19 +66,7 @@ export function SavedTripsSection() {
   // Delete trip mutation
   const deleteTripMutation = useMutation({
     mutationFn: async (tripId: string) => {
-      const token = await getToken();
-      const response = await fetch(`/api/trips/${tripId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to delete trip');
-      }
-      
-      return response.json();
+      return apiClient.deleteTrip(tripId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['trips'] });

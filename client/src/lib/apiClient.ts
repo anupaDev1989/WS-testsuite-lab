@@ -1,5 +1,14 @@
 // src/lib/apiClient.ts
 import useUuidStore from '@/stores/uuidStore';
+import { getSupabaseJWT } from '@/lib/authUtils';
+import { UserProfile, TripSummary, Trip } from '@/types';
+
+// Type for API response
+type ApiResponse<T = any> = T & {
+  message?: string;
+  code?: string;
+  details?: any;
+};
 
 // Custom error classes
 export class ApiError extends Error {
@@ -25,6 +34,9 @@ export class RateLimitError extends ApiError {
     this.name = 'RateLimitError';
   }
 }
+
+// Base URL for API requests
+const API_BASE_URL = 'https://testsuite-worker.des9891sl.workers.dev';
 
 // Request timeout in milliseconds
 const DEFAULT_TIMEOUT = 15000; // Increased timeout
@@ -61,8 +73,12 @@ export const apiClient = {
   async request<T = any>(
     url: string, 
     options: RequestInit = {},
-    timeout = DEFAULT_TIMEOUT
+    timeout = DEFAULT_TIMEOUT,
+    authenticated = false
   ): Promise<T> {
+    if (!url) {
+      throw new Error('URL is required');
+    }
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
@@ -77,40 +93,62 @@ export const apiClient = {
       
       const headers = new Headers(options.headers);
       headers.set('x-client-id', clientId);
+      headers.set('Accept', 'application/json');
+
+      if (authenticated) {
+        const token = await getSupabaseJWT();
+        if (token) {
+          headers.set('Authorization', `Bearer ${token}`);
+        } else {
+          console.warn('Authenticated request made, but no Supabase JWT found.');
+          throw new ApiError(401, 'Authentication required');
+        }
+      }
       
       if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
         headers.set('Content-Type', 'application/json');
       }
-      
-      const response = await withRetry(async () => {
-        const res = await fetch(url, {
-          ...options,
-          headers,
-          signal: controller.signal,
-        });
 
-        if (res.status === 429) {
-          const responseBody = await res.clone().json().catch(() => ({}));
-          const retryAfterHeader = res.headers.get('Retry-After');
-          const retryAfter = retryAfterHeader ? parseInt(retryAfterHeader, 10) : (RETRY_CONFIG.initialDelay / 1000);
-          throw new RateLimitError(res.status, responseBody.message || 'Rate limit exceeded', retryAfter, responseBody);
-        }
-
-        if (!res.ok) {
-          const errorBody = await res.json().catch(() => ({ message: 'Request failed with status: ' + res.status }));
-          throw new ApiError(res.status, errorBody.message || `Request failed`, errorBody.code, errorBody);
-        }
-
-        // Handle cases where response might be empty but still OK (e.g., 204 No Content)
-        if (res.status === 204) {
-          return null as T; 
-        }
-
-        return res.json();
+      const response = await fetch(`${API_BASE_URL}${url}`, {
+        ...options,
+        headers,
+        signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
-      return response;
+
+      // Handle rate limiting
+      if (response.status === 429) {
+        const retryAfter = parseInt(response.headers.get('Retry-After') || '1', 10);
+        throw new RateLimitError(
+          response.status,
+          'Rate limit exceeded',
+          retryAfter,
+          { url, method: options.method || 'GET' }
+        );
+      }
+
+      // Handle empty responses
+      const contentType = response.headers.get('content-type');
+      if (response.status === 204 || !contentType || !contentType.includes('application/json')) {
+        if (response.ok) {
+          return null as unknown as T;
+        }
+        throw new ApiError(response.status, 'Invalid response from server');
+      }
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new ApiError(
+          response.status,
+          data.message || 'An error occurred',
+          data.code,
+          data.details
+        );
+      }
+
+      return data;
     } catch (error: any) {
       clearTimeout(timeoutId);
       if (error instanceof ApiError) {
@@ -119,34 +157,131 @@ export const apiClient = {
       // For other errors, wrap them in a generic ApiError
       console.error('Network or other error in apiClient:', error);
       const errorMessage = error?.message || 'Network request failed or an unexpected error occurred.';
-      const errorStack = error instanceof Error ? error.stack : undefined;
       // Corrected order: status (500) first, then message (errorMessage)
       throw new ApiError(500, errorMessage, undefined, error instanceof Error ? error : new Error(String(error))); // Pass errorStack as details if desired, or keep it simple
     }
   },
 
-  // Convenience methods
-  get<T = any>(url: string, options?: RequestInit, timeout?: number): Promise<T> {
-    return this.request(url, { ...options, method: 'GET' }, timeout);
+  // Convenience methods with proper type safety
+  async get<T = any>(url: string, options: RequestInit = {}, timeout?: number, authenticated = false): Promise<T> {
+    return this.request<T>(url, { ...options, method: 'GET' }, timeout, authenticated);
   },
 
-  post<T = any>(url: string, body?: any, options?: RequestInit, timeout?: number): Promise<T> {
-    return this.request(url, {
+  async post<T = any>(
+    url: string, 
+    body?: unknown, 
+    options: RequestInit = {}, 
+    timeout?: number, 
+    authenticated = false
+  ): Promise<T> {
+    const requestOptions: RequestInit = {
       ...options,
       method: 'POST',
-      body: (body instanceof FormData) ? body : JSON.stringify(body),
-    }, timeout);
+    };
+
+    if (body !== undefined) {
+      requestOptions.body = body instanceof FormData ? body : JSON.stringify(body);
+    }
+
+    return this.request<T>(url, requestOptions, timeout, authenticated);
   },
 
-  put<T = any>(url: string, body?: any, options?: RequestInit, timeout?: number): Promise<T> {
-    return this.request(url, {
+  async put<T = any>(
+    url: string, 
+    body?: unknown, 
+    options: RequestInit = {}, 
+    timeout?: number, 
+    authenticated = false
+  ): Promise<T> {
+    const requestOptions: RequestInit = {
       ...options,
       method: 'PUT',
-      body: (body instanceof FormData) ? body : JSON.stringify(body),
-    }, timeout);
+    };
+
+    if (body !== undefined) {
+      requestOptions.body = body instanceof FormData ? body : JSON.stringify(body);
+    }
+
+    return this.request<T>(url, requestOptions, timeout, authenticated);
   },
 
-  delete<T = any>(url: string, options?: RequestInit, timeout?: number): Promise<T> {
-    return this.request(url, { ...options, method: 'DELETE' }, timeout);
+  async delete<T = any>(url: string, options: RequestInit = {}, timeout?: number, authenticated = false): Promise<T> {
+    return this.request<T>(url, { ...options, method: 'DELETE' }, timeout, authenticated);
   },
+
+  async patch<T = any>(
+    url: string, 
+    body?: unknown, 
+    options: RequestInit = {}, 
+    timeout?: number, 
+    authenticated = false
+  ): Promise<T> {
+    const requestOptions: RequestInit = {
+      ...options,
+      method: 'PATCH',
+    };
+
+    if (body !== undefined) {
+      requestOptions.body = body instanceof FormData ? body : JSON.stringify(body);
+    }
+
+    return this.request<T>(url, requestOptions, timeout, authenticated);
+  },
+
+  // --- Profile and Trips API Methods ---
+
+  async getProfile(): Promise<UserProfile> {
+    const response = await this.get<ApiResponse<{data: UserProfile}>>('/api/profile/me', {}, undefined, true);
+    // Ensure we have the required fields with defaults
+    return {
+      email: response?.data?.email || '',
+      city: response?.data?.city || null
+    };
+  },
+
+  async getTrips(): Promise<TripSummary[]> {
+    const response = await this.get<ApiResponse<{data: TripSummary[]}>>('/api/trips', {}, undefined, true);
+    // Ensure we return an array of TripSummary with required fields
+    return Array.isArray(response?.data) 
+      ? response.data.map(trip => ({
+          id: trip.id || '',
+          title: trip.title || 'Untitled Trip',
+          city: trip.city || null,
+          created_at: trip.created_at || new Date().toISOString()
+        }))
+      : [];
+  },
+
+  async getTrip(id: string): Promise<Trip> {
+    if (!id) {
+      throw new Error('Trip ID is required');
+    }
+    return this.get<ApiResponse<Trip>>(`/api/trips/${id}`, {}, undefined, true);
+  },
+
+  async saveTrip(data: { title: string; content: any; city?: string }): Promise<void> {
+    if (!data?.title) {
+      throw new Error('Trip title is required');
+    }
+    try {
+      console.log('[apiClient] Saving trip with data:', data);
+      const response = await this.post<ApiResponse>('/api/trips', data, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }, undefined, true);
+      console.log('[apiClient] Save trip response:', response);
+    } catch (error) {
+      console.error('[apiClient] Error saving trip:', error);
+      throw error;
+    }
+  },
+
+  async deleteTrip(id: string): Promise<void> {
+    if (!id) {
+      throw new Error('Trip ID is required');
+    }
+    await this.delete(`/api/trips/${id}`, {}, undefined, true);
+  },
+
 };

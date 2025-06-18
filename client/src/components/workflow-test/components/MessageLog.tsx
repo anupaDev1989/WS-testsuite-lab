@@ -1,11 +1,13 @@
 import React, { useEffect, useRef } from 'react';
 import { Message } from '../types';
+import { Button } from '@/components/ui/button';
 
 interface MessageLogProps {
   messages: Message[];
+  onSaveTrip?: (tripContent: any) => void;
 }
 
-const MessageLog: React.FC<MessageLogProps> = ({ messages }) => {
+const MessageLog: React.FC<MessageLogProps> = ({ messages, onSaveTrip }) => {
   const endOfMessagesRef = useRef<null | HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -37,6 +39,18 @@ const MessageLog: React.FC<MessageLogProps> = ({ messages }) => {
           className={`p-3 rounded-lg max-w-[80%] break-words shadow ${getSenderClass(msg.sender)}`}
         >
           <p className="whitespace-pre-wrap">{msg.content}</p>
+          {msg.sender === 'llm' && onSaveTrip && (
+            <div className="mt-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="text-xs py-0 h-6 bg-white/10 hover:bg-white/20 text-white border-gray-600"
+                onClick={() => onSaveTrip(msg.content)}
+              >
+                Save Trip
+              </Button>
+            </div>
+          )}
           <p className="text-xs text-gray-400 mt-1 text-right">
             {new Date(msg.timestamp).toLocaleTimeString()} {msg.status && msg.status !== 'success' ? `(${msg.status})` : ''}
           </p>

@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Terminal, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
@@ -6,13 +7,15 @@ interface Message {
   type: 'request' | 'response';
   timestamp: string;
   content: any;
+  requestEndpoint?: string;
 }
 
 interface MessagePaneProps {
   messages: Message[];
+  onSaveTrip: (tripContent: any) => void;
 }
 
-export function MessagePane({ messages }: MessagePaneProps) {
+export function MessagePane({ messages, onSaveTrip }: MessagePaneProps) {
   return (
     <div className="h-full flex flex-col">
       <div className="p-4 border-b">
@@ -45,6 +48,16 @@ export function MessagePane({ messages }: MessagePaneProps) {
                 <pre className="text-sm bg-muted p-2 rounded-md whitespace-pre-wrap break-all">
                   {JSON.stringify(message.content, null, 2)}
                 </pre>
+                {message.type === 'response' && message.requestEndpoint?.includes('/api/llm/') && !message.content.error && (
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => onSaveTrip(message.content)}
+                  >
+                    Save Trip
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ))}

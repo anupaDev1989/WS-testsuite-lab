@@ -27,3 +27,12 @@ enabled = true
   type = "ratelimit"
   namespace_id = "800"
   simple = { limit = 10, period = 60 }
+
+# --- D1 Database Binding ---
+[[d1_databases]]
+binding = "DB" # This is how you'll access it in your worker code (e.g., c.env.DB)
+database_name = "test_suite_db"
+database_id = "d914f9a9-5ecf-4ad3-8667-f4ac54bc0a08"
+# You might want to create a separate D1 database for local development/preview
+# and add its ID here. For now, I'll use the same ID for preview.
+preview_database_id = "d914f9a9-5ecf-4ad3-8667-f4ac54bc0a08"

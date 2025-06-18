@@ -18,6 +18,7 @@ import { createClient } from '@supabase/supabase-js'
 const app = new Hono()
 
 import { rateLimitMiddleware, defaultRateLimitConfigs } from './middleware/rateLimit.ts';
+import profileApp from './routes/profile.js';
 
 // CORS Middleware - applied to all routes
 app.use('*', cors({
@@ -130,6 +131,14 @@ const authMiddleware = async (c, next) => {
 
 // Old rate limiting middleware functions have been removed.
 // New rate limiting logic is handled by './middleware/rateLimit.ts'.
+
+// Health check endpoint
+// --- Profile & Trips API Endpoints ---
+// All routes in profileApp are automatically protected by this middleware.
+app.use('/api/profile/*', authMiddleware);
+app.use('/api/trips/*', authMiddleware);
+// Mount profile routes at the root since they already include /api/ prefix
+app.route('/', profileApp);
 
 // Health check endpoint
 app.get('/health', (c) => {

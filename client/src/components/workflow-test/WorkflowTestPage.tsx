@@ -1,19 +1,47 @@
 import React, { useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 import MessageInput from './components/MessageInput';
 import MessageLog from './components/MessageLog';
-import InfoSection from './components/InfoSection'; // Replaced LLMResponse with InfoSection
-import RawLogDisplay from './components/RawLogDisplay'; // Added import
-import { Message } from './types';
-import { workerService } from '@/lib/workerService'; // Assuming workerService is in this path
+import InfoSection from './components/InfoSection';
+import RawLogDisplay from './components/RawLogDisplay';
+import { workerService } from '@/lib/workerService';
 import { getSupabaseJWT } from '../../lib/authUtils';
+import useProfileStore from '@/stores/profileStore';
+import useChatStore from '@/stores/chatStore';
 
 const WorkflowTestPage: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>([]);
-  // Removed currentLlmResponse state
+  // Replace local messages state with chatStore
+  const { 
+    messages, 
+    isLoading, 
+    addMessage, 
+    addSystemMessage, 
+    setLoading 
+  } = useChatStore();
+  
   const [rawApiCall, setRawApiCall] = useState<string>('');
   const [rawApiResponse, setRawApiResponse] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const { saveTrip } = useProfileStore();
+
+  const handleSaveTrip = async (tripContent: any) => {
+    if (!tripContent) {
+      console.error("Cannot save trip: No content provided");
+      return;
+    }
+
+    const title = `Trip saved at ${new Date().toLocaleString()}`;
+    
+    try {
+      await saveTrip({ 
+        title, 
+        content: tripContent,
+        city: 'Unknown' // Default city, can be updated if available
+      });
+      alert('Trip saved successfully!');
+    } catch (error) {
+      console.error('Failed to save trip:', error);
+      alert('Failed to save trip. Please try again.');
+    }
+  };
 
   const handleSendMessage = async (content: string) => {
     if (!content.trim()) return;
@@ -21,15 +49,14 @@ const WorkflowTestPage: React.FC = () => {
     setRawApiCall(''); // Clear previous logs
     setRawApiResponse('');
 
-    const userMessage: Message = {
-      id: uuidv4(),
+    // Add user message using chatStore
+    addMessage({
       content,
       sender: 'user',
-      timestamp: new Date(), // Corrected to Date object
-      status: 'success', // Changed 'sent' to 'success' or undefined if preferred
-    };
-    setMessages((prevMessages) => [...prevMessages, userMessage]);
-    setIsLoading(true);
+      status: 'success',
+    });
+    
+    setLoading(true);
 
     try {
       const requestBody = { prompt: content };
@@ -69,27 +96,22 @@ const WorkflowTestPage: React.FC = () => {
         llmResponseContent = responseData.response;
       }
 
-      const llmMessage: Message = {
-        id: uuidv4(), // Assign a new ID for the LLM's message
+      // Add LLM message using chatStore
+      addMessage({
         content: llmResponseContent,
         sender: 'llm',
-        timestamp: new Date(), // Corrected to Date object
         status: 'success',
-      };
-      setMessages((prevMessages) => [...prevMessages, llmMessage]);
+      });
 
     } catch (error: any) {
       console.error('Error sending message to LLM:', error);
       const errorData = error.response?.data as any; // Cast to any for safe access
       const errorMessageContent = errorData?.error || error.message || 'An unknown error occurred';
-      const systemMessage: Message = {
-        id: uuidv4(),
-        content: `Error: ${errorMessageContent}`,
-        sender: 'system',
-        timestamp: new Date(), // Corrected to Date object
-        status: 'error',
-      };
-      setMessages((prevMessages) => [...prevMessages, systemMessage]);
+      // Add system error message using chatStore
+      addSystemMessage(
+        `Error: ${errorMessageContent}`,
+        'error'
+      );
 
       let errorResponseLog = `Error: ${errorMessageContent}\n`;
       if (error.response) { // Axios error structure
@@ -102,7 +124,7 @@ const WorkflowTestPage: React.FC = () => {
       setRawApiResponse(errorResponseLog);
 
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
@@ -113,7 +135,10 @@ const WorkflowTestPage: React.FC = () => {
         {/* Middle Pane: Message Log and Raw Log Display */}
         <div className="flex-1 flex flex-col p-2 bg-gray-800 rounded-lg shadow-inner min-w-[400px] max-w-3xl mx-auto space-y-2">
           <div className="flex-1 flex flex-col min-h-[50%]">
-            <MessageLog messages={messages} />
+            <MessageLog 
+              messages={messages} 
+              onSaveTrip={handleSaveTrip}
+            />
           </div>
           <div className="flex-1 flex flex-col min-h-[30%] max-h-[45%]">
             <RawLogDisplay requestLog={rawApiCall} responseLog={rawApiResponse} />

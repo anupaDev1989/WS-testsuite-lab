@@ -11,6 +11,10 @@ A comprehensive testing and development platform with a React-based frontend and
 - 📊 **Real-time Monitoring** - Live rate limit and usage statistics
 - 🔄 **State Management** - Persistent state across sessions with Zustand and localStorage
 - 🆔 **Persistent Client ID** - Unique client identification that persists across page refreshes
+- 👤 **User Profile & Trip Management (Cloudflare D1 Integration)**
+  - View and manage your user profile.
+  - Save, view, and delete "Trips" (LLM-generated content) persisted in Cloudflare D1.
+  - Securely access your profile and trip data.
 
 ## Tech Stack
 
@@ -126,6 +130,13 @@ Authorization: Bearer <your-jwt-token>
 #### Testing
 - `GET /api/test` - Test endpoint with rate limiting
 - `GET /api/protected-data` - Example protected endpoint
+
+#### User Profile & Trips
+- `GET /api/profile/me` - Get current user's profile (creates if not exists).
+- `GET /api/trips` - Get all saved trips for the current user.
+- `GET /api/trips/:id` - Get details for a specific trip.
+- `POST /api/trips` - Save a new trip (LLM response).
+- `DELETE /api/trips/:id` - Delete a specific trip.
 
 ## Rate Limiting
 

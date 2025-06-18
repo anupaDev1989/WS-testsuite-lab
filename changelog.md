@@ -1,5 +1,49 @@
 # Changelog
 
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.2.0] - 2025-06-17
+
+### Added
+- **User Profile Management (Cloudflare D1 Integration):**
+  - User profiles automatically created/retrieved on accessing the Profile Page.
+  - Profile Page displays user email and saved "Trips" (LLM responses).
+  - Navigation link to Profile Page added to application header/dropdown.
+- **Trip Saving & Management (Cloudflare D1 Integration):**
+  - Functionality to save LLM responses as "Trips" from the Workflow Test page.
+  - Saved trips are stored in Cloudflare D1, associated with the authenticated user.
+  - Trips are listed on the Profile Page, showing title, city (if any), creation date, and full LLM response content.
+- **API Endpoints for Profile & Trips:**
+  - `GET /api/profile/me`: Fetches or creates the current user's profile.
+  - `GET /api/trips`: Fetches all saved trips for the current user.
+  - `GET /api/trips/:id`: Fetches details for a specific trip.
+  - `POST /api/trips`: Saves a new trip.
+  - `DELETE /api/trips/:id`: Deletes a specific trip.
+- **Security & Configuration:**
+  - Supabase credentials now loaded from Vite environment variables (`.env`) instead of being hardcoded.
+  - Cloudflare Worker endpoints for profile and trips are secured using Supabase JWT authentication.
+- **Frontend Enhancements:**
+  - Improved loading states, error handling, and UI for the Profile Page.
+  - `apiClient.ts` refactored with dedicated, type-safe methods for profile and trip operations.
+  - `profileStore.ts` (Zustand) manages profile and trip state effectively.
+
+### Fixed
+- Resolved 404 errors for trip saving by correcting API endpoint paths (ensuring `/api` prefix) in frontend calls (`profileStore.ts`, `apiClient.ts`).
+- Fixed non-functional "Delete Trip" button by ensuring correct API endpoint invocation in `profileStore.ts`.
+- Corrected Cloudflare Worker route mounting and API prefix handling to resolve various 404/500 errors.
+- Addressed issues with D1 database interactions in the worker, including using the correct table name (`user_saved_info`) and schema for trips.
+- Resolved authentication issues where Supabase JWT was not consistently passed or user context was not available in worker.
+- Fixed UI bugs on the Profile Page related to data display and component rendering.
+
+### Changed
+- Relocated "Save Trip" functionality from a dedicated test page to the main Workflow Test page for better user experience.
+- Updated `apiClient.ts` to consistently use the deployed Cloudflare Worker URL for API requests.
+
+## 2025-06-09
+
 ## 2025-06-09
 
 ### Persistent Client UUID for Rate Limiting

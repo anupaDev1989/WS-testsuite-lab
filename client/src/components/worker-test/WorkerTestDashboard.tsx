@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import useProfileStore from '@/stores/profileStore';
 import { TestSelectionPane, TestCase } from './TestSelectionPane';
 import { MessagePane } from './MessagePane';
 import { ConfigPane, TestConfig } from './ConfigPane';
@@ -75,6 +76,7 @@ export function WorkerTestDashboard() {
   const [selectedTest, setSelectedTest] = useState<TestCase | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const { saveTrip } = useProfileStore();
 
   const handleRunTest = async (config: TestConfig) => {
     setIsLoading(true);
@@ -114,26 +116,49 @@ export function WorkerTestDashboard() {
       }
 
       // Add response message
-      const responseMessage = {
+            const responseMessage = {
         type: 'response' as const,
         timestamp: new Date().toISOString(),
         content: response,
+        requestEndpoint: config.endpoint,
       };
       setMessages((prev) => [...prev, responseMessage]);
       return response; // Return response so ConfigPane can update counter
     } catch (error: any) {
       // Add error message
-      const errorMessage = {
+            const errorMessage = {
         type: 'response' as const,
         timestamp: new Date().toISOString(),
         content: {
           error: error.message || 'An error occurred',
         },
+        requestEndpoint: config.endpoint,
       };
       setMessages((prev) => [...prev, errorMessage]);
       throw error; // propagate error so ConfigPane can handle if needed
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSaveTrip = async (tripContent: any) => {
+    if (!tripContent || tripContent.error) {
+      // Optionally, show an alert to the user that this cannot be saved.
+      console.error("Cannot save an error response or empty content.");
+      return;
+    }
+
+    // Create a title. This could be improved to ask the user for a title.
+    const title = `Trip saved at ${new Date().toLocaleString()}`;
+    
+    try {
+      await saveTrip({ title, content: tripContent });
+      // Optionally, show a success toast message.
+      alert('Trip saved successfully!');
+    } catch (error) {
+      console.error('Failed to save trip:', error);
+      // Optionally, show an error toast message.
+      alert('Failed to save trip.');
     }
   };
 
@@ -144,7 +169,10 @@ export function WorkerTestDashboard() {
         selectedTest={selectedTest}
         onSelectTest={setSelectedTest}
       />
-      <MessagePane messages={messages} />
+            <MessagePane 
+        messages={messages}
+        onSaveTrip={handleSaveTrip}
+      />
       <ConfigPane
         selectedTest={selectedTest}
         onRunTest={handleRunTest}

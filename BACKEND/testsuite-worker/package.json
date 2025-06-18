@@ -16,6 +16,7 @@
 		"wrangler": "^4.15.2"
 	},
 	"dependencies": {
+		"@hono/zod-validator": "^0.7.0",
 		"@supabase/supabase-js": "^2.49.4",
 		"hono": "^4.7.10",
 		"zod": "^3.24.4"
