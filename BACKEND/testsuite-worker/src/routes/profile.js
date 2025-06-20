@@ -15,6 +15,19 @@ const updateProfileSchema = z.object({
   city: z.string().min(1, 'City is required'),
 });
 
+// --- Helper function to count user's trips ---
+const countUserTrips = async (db, userId) => {
+  try {
+    const { count } = await db.prepare(
+      'SELECT COUNT(*) as count FROM user_saved_info WHERE user_id = ?'
+    ).bind(userId).first();
+    return count || 0;
+  } catch (error) {
+    console.error('Error counting user trips:', error);
+    throw error;
+  }
+};
+
 // --- Helper function to get or create user profile ---
 const getOrCreateUserProfile = async (db, user) => {
   console.log('[getOrCreateUserProfile] Called with user:', JSON.stringify(user, null, 2));
@@ -138,6 +151,16 @@ profileApp.post('/api/trips', zValidator('json', tripSchema), async (c) => {
   const db = c.env.DB;
 
   try {
+    // Check trip limit
+    const tripCount = await countUserTrips(db, user.id);
+    if (tripCount >= 6) {
+      return c.json({ 
+        success: false, 
+        error: 'Maximum trip limit reached',
+        message: 'You have reached the maximum limit of 6 saved trips. Please delete an existing trip to save a new one.'
+      }, 400);
+    }
+
     const contentString = JSON.stringify(content);
     const id = crypto.randomUUID();
 
@@ -150,7 +173,18 @@ profileApp.post('/api/trips', zValidator('json', tripSchema), async (c) => {
     return c.json({ success: true, data: newTrip }, 201);
   } catch (error) {
     console.error('Failed to save trip:', error);
-    return c.json({ success: false, error: 'Failed to save trip' }, 500);
+    if (error.status === 400) {
+      return c.json({ 
+        success: false, 
+        error: error.message || 'Trip limit reached',
+        message: error.message || 'Maximum trip limit reached'
+      }, 400);
+    }
+    return c.json({ 
+      success: false, 
+      error: 'Failed to save trip',
+      message: 'An error occurred while saving your trip. Please try again.'
+    }, 500);
   }
 });
 

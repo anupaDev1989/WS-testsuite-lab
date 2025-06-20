@@ -56,14 +56,32 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
-  server.listen({
-    port,
-    host: "localhost",
-  }, () => {
-    log(`serving on port ${port}`);
-  });
+  // Find an available port starting from 5000
+  const startPort = 5000;
+  const maxAttempts = 10;
+  
+  const tryStartServer = (port: number, attempt: number = 0) => {
+    if (attempt >= maxAttempts) {
+      console.error('Could not find an available port after multiple attempts');
+      process.exit(1);
+    }
+
+    const serverInstance = server.listen(port, 'localhost')
+      .on('error', (err: NodeJS.ErrnoException) => {
+        if (err.code === 'EADDRINUSE') {
+          log(`Port ${port} is in use, trying next port...`);
+          tryStartServer(port + 1, attempt + 1);
+        } else {
+          console.error('Server error:', err);
+          process.exit(1);
+        }
+      })
+      .on('listening', () => {
+        log(`Server is running on http://localhost:${port}`);
+        // Update the Vite config with the actual port
+        process.env.VITE_API_URL = `http://localhost:${port}`;
+      });
+  };
+
+  tryStartServer(startPort);
 })();

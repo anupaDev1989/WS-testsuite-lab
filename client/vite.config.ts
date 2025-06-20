@@ -6,13 +6,23 @@ import path from 'path';
 export default defineConfig({
   plugins: [react()],
   server: {
+    port: 3000,
+    strictPort: true,
+    host: true,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8787',
+        target: process.env.VITE_API_URL || 'http://localhost:5000',
         changeOrigin: true,
         secure: false,
+        rewrite: (path) => path.replace(/^\/api/, '')
       },
     },
+    cors: {
+      origin: '*',
+      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+      preflightContinue: false,
+      optionsSuccessStatus: 204
+    }
   },
   resolve: {
     alias: {
