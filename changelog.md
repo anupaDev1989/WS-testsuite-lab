@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2025-06-20
+
+### Added
+- **Content Security Policy (CSP) Implementation**
+  - Added global CSP middleware with strict security policies
+  - Implemented nonce-based CSP for inline scripts and styles
+  - Added CSP violation reporting endpoint (`/api/csp-report`)
+  - Included comprehensive security headers (X-Content-Type-Options, X-Frame-Options, etc.)
+  - Added CORS configuration with secure defaults
+
+## [0.2.1] - 2025-06-20
+
+### Added
+- **Trip Limit Enforcement**
+  - Implemented server-side validation to limit users to a maximum of 6 saved trips
+  - Added clear error messaging when users attempt to exceed the trip limit
+  - Updated API documentation to reflect the new trip limit
+
+### Fixed
+- Fixed potential race condition in trip creation by adding transaction safety
+- Improved error handling for database operations in the trip creation flow
+
 ## [0.2.0] - 2025-06-17
 
 ### Added

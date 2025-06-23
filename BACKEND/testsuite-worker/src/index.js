@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { createClient } from '@supabase/supabase-js'
+import { csp, cspReportHandler } from './middleware/csp' // Import CSP middleware
 
 // --- Env interface for type safety (for Typescript users, otherwise just a comment)
 /**
@@ -20,13 +21,83 @@ const app = new Hono()
 import { rateLimitMiddleware, defaultRateLimitConfigs } from './middleware/rateLimit.ts';
 import profileApp from './routes/profile.js';
 
+// CSP Middleware - applied to all routes
+app.use('*', csp({
+  reportOnly: false, // Set to true in development to test without enforcing
+  directives: {
+    // Customize these directives based on your app's needs
+    'script-src': [
+      "'self'",
+      'https://*.googleapis.com',
+      'https://*.supabase.co',
+      'https://unpkg.com',
+      "'unsafe-inline'" // Consider removing in production
+    ],
+    'style-src': [
+      "'self'",
+      'https://*.googleapis.com',
+      "'unsafe-inline'" // Required for some CSS-in-JS libraries
+    ],
+    'img-src': [
+      "'self'",
+      'data:',
+      'https: http:',
+      'blob:'
+    ],
+    'connect-src': [
+      "'self'",
+      'https://*.googleapis.com',
+      'https://*.supabase.co',
+      'wss://*.supabase.co',
+      'ws://localhost:*' // For development
+    ]
+  }
+}));
+
 // CORS Middleware - applied to all routes
-app.use('*', cors({
-  origin: '*', // Adjust for production if needed
-  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization', 'x-client-id', 'x-rate-limit-tier'], // Added x-client-id
-  exposeHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset', 'Retry-After'], // Standard rate limit headers
-}))
+app.use('*', async (c, next) => {
+  const origin = c.req.header('Origin') || '';
+  const allowedOrigins = process.env.NODE_ENV === 'production'
+    ? ['https://your-production-domain.com']
+    : [
+        'http://localhost:3000',
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        'http://localhost:*',
+        'http://127.0.0.1:*'
+      ];
+
+  // Allow any localhost or 127.0.0.1 origin in development
+  const isAllowed = process.env.NODE_ENV !== 'production' && 
+    (origin.includes('localhost') || origin.includes('127.0.0.1'));
+
+  return cors({
+    origin: (origin) => {
+      if (isAllowed || allowedOrigins.includes(origin)) {
+        return origin;
+      }
+      return null; // Disallow the request
+    },
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowHeaders: [
+      'Content-Type',
+      'Authorization',
+      'x-client-id',
+      'x-rate-limit-tier',
+      'Content-Security-Policy',
+      'X-Content-Type-Options'
+    ],
+    exposeHeaders: [
+      'X-RateLimit-Limit',
+      'X-RateLimit-Remaining',
+      'X-RateLimit-Reset',
+      'Retry-After',
+      'Content-Security-Policy'
+    ],
+    credentials: true,
+    maxAge: 86400 // 24 hours
+  })(c, next);
+})
 
 // Authentication Middleware
 const authMiddleware = async (c, next) => {
@@ -148,6 +219,9 @@ app.get('/health', (c) => {
     timestamp: new Date().toISOString()
   })
 })
+
+// CSP violation report endpoint
+app.post('/api/csp-report', cspReportHandler());
 
 // Mock users endpoint
 app.get('/api/users', (c) => {
@@ -405,10 +479,16 @@ app.post('/api/llm/secondary', authMiddleware, async (c) => {
 // Error handling
 app.onError((err, c) => {
   console.error(`${err}`);
+  
+  // Ensure CSP headers are still set on error responses
+  c.header('X-Content-Type-Options', 'nosniff');
+  c.header('X-Frame-Options', 'SAMEORIGIN');
+  c.header('X-XSS-Protection', '1; mode=block');
+  
   return c.json({
     status: 'error',
     message: 'Internal Server Error',
-    error: err.message
+    error: process.env.NODE_ENV === 'production' ? 'An error occurred' : err.message
   }, 500)
 })
 

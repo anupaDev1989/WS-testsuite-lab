@@ -6,14 +6,18 @@ A comprehensive testing and development platform with a React-based frontend and
 
 - 🔐 **Authentication** - Secure user authentication using Supabase Auth
 - 🚦 **Rate Limiting** - Tiered rate limiting for API endpoints with persistent client identification
+- 🛡️ **Security** - Strict Content Security Policy (CSP) headers to prevent XSS attacks
 - 🤖 **AI Integration** - Gemini AI integration for natural language processing
 - 🛠️ **API Testing** - Built-in tools for testing RESTful APIs
 - 📊 **Real-time Monitoring** - Live rate limit and usage statistics
+- 🔒 **Security Headers** - Comprehensive security headers including X-Content-Type-Options, X-Frame-Options, and more
 - 🔄 **State Management** - Persistent state across sessions with Zustand and localStorage
 - 🆔 **Persistent Client ID** - Unique client identification that persists across page refreshes
 - 👤 **User Profile & Trip Management (Cloudflare D1 Integration)**
   - View and manage your user profile.
   - Save, view, and delete "Trips" (LLM-generated content) persisted in Cloudflare D1.
+  - Maximum of 6 saved trips per user to ensure optimal performance.
+  - Clear error messages when trip limit is reached.
   - Securely access your profile and trip data.
 
 ## Tech Stack
